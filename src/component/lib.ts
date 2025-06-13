@@ -26,6 +26,7 @@ const CALLBACK_POOL_SIZE = 4;
 const RESEND_ONE_CALL_EVERY_MS = 600; // Half the stated limit, but it keeps us sane.
 const FINALIZED_EMAIL_RETENTION_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 const FINALIZED_EPOCH = Number.MAX_SAFE_INTEGER;
+const ABANDONED_EMAIL_RETENTION_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
 
 const RESEND_TEST_EMAILS = new Set([
   "delivered@resend.dev",
@@ -269,7 +270,6 @@ export const makeBatch = internalMutation({
       )
       .take(BATCH_SIZE);
 
-
     // If we have no emails, or we have a short batch on a reloop,
     // let's delay working for now.
     if (emails.length === 0 || (args.reloop && emails.length < BATCH_SIZE)) {
@@ -312,7 +312,8 @@ export const makeBatch = internalMutation({
 // emails in newer segments and so we should sleep for a bit before trying to make batches again.
 // If the table is empty, we need to stop the worker and idle the system until a new email is inserted.
 async function reschedule(ctx: MutationCtx, emailsLeft: boolean) {
-   emailsLeft = emailsLeft ||
+  emailsLeft =
+    emailsLeft ||
     (await ctx.db
       .query("emails")
       .withIndex("by_status_segment", (q) => q.eq("status", "waiting"))
@@ -624,6 +625,38 @@ export const cleanupOldEmails = internalMutation({
     }
     if (oldAndDone.length === 500) {
       await ctx.scheduler.runAfter(0, internal.lib.cleanupOldEmails, {});
+    }
+  },
+});
+
+// Periodic background job to clean up old emails that have been abandoned.
+// Meaning, even if they're not finalized, we should just get rid of them.
+export const cleanupAbandonedEmails = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const oldAndAbandoned = await ctx.db
+      .query("emails")
+      .withIndex("by_creation_time", (q) =>
+        q.lt("_creationTime", Date.now() - ABANDONED_EMAIL_RETENTION_MS)
+      )
+      .take(500);
+
+    for (const email of oldAndAbandoned) {
+      // No webhook to finalize these. We'll just delete them.
+      await ctx.db.delete(email._id);
+      if (email.text) {
+        await ctx.db.delete(email.text);
+      }
+      if (email.html) {
+        await ctx.db.delete(email.html);
+      }
+    }
+    if (oldAndAbandoned.length > 0) {
+      console.log(`Cleaned up ${oldAndAbandoned.length} emails`);
+    }
+    if (oldAndAbandoned.length === 500) {
+      await ctx.scheduler.runAfter(0, internal.lib.cleanupAbandonedEmails, {});
     }
   },
 });

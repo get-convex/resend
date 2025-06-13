@@ -8,5 +8,10 @@ crons.interval(
   { minutes: 5 }, // Every five minutes
   internal.lib.cleanupOldEmails
 );
+crons.interval(
+  "Remove abandoned emails from database that will never finalize",
+  { minutes: 5 }, // Every five minutes
+  internal.lib.cleanupAbandonedEmails
+);
 
 export default crons;
