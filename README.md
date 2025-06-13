@@ -48,7 +48,7 @@ import { internalMutation } from "./_generated/server";
 
 export const resend: Resend = new Resend(components.resend, {});
 
-export const myEmailingAction = internalMutation({
+export const sendTestEmail = internalMutation({
   handler: async (ctx) => {
     await resend.sendEmail(
       ctx,
@@ -61,7 +61,7 @@ export const myEmailingAction = internalMutation({
 });
 ```
 
-Then, calling `myEmailingAction` from anywhere in your app will send this test email.
+Then, calling `sendTestEmail` from anywhere in your app will send this test email.
 
 If you want to send emails to real addresses, you need to disable `testMode`.
 You can do this in `ResendOptions`, [as detailed below](#resend-component-options-and-going-into-production).
