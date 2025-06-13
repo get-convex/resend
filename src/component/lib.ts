@@ -363,7 +363,7 @@ export const callResendAPIWithBatch = internalAction({
     // Okay, let's calculate rate limiting as best we can globally in this distributed system.
     const goTime = await getGoTime(ctx);
     const delay = goTime - Date.now();
-    console.log(`RL Delay: ${delay}ms, goTime: ${goTime}`);
+    //console.log(`RL Delay: ${delay}ms, goTime: ${goTime}`);
     if (delay > 0) {
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
@@ -444,7 +444,7 @@ async function getGoTime(ctx: RunMutationCtx): Promise<number> {
     reserve: true,
     throws: true,
   });
-  console.log(`RL: ${limit.ok} ${limit.retryAfter}`);
+  //console.log(`RL: ${limit.ok} ${limit.retryAfter}`);
   return Date.now() + FIXED_WINDOW_DELAY + (limit.retryAfter ?? 0);
 }
 
