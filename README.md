@@ -13,7 +13,7 @@ Features:
 - Idempotency: Manages Resend idempotency keys to guarantee emails are delivered exactly once, preventing accidental spamming from retries.
 - Rate limiting: Honors API rate limits established by Resend.
 
-See `example` for an example of how to incorporate this hook into your
+See [example](./example) for a demo of how to incorporate this hook into your
 application.
 
 ## Installation
