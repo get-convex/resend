@@ -63,6 +63,9 @@ export const myEmailingAction = internalMutation({
 
 Then, calling `myEmailingAction` from anywhere in your app will send this test email.
 
+If you want to send emails to real addresses, you need to disable `testMode`.
+You can do this in `ResendOptions`, [as detailed below](#resend-component-options-and-going-into-production).
+
 ## Advanced Usage
 
 ### Setting up a Resend webhook
