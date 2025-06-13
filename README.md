@@ -63,6 +63,8 @@ export const myEmailingAction = internalMutation({
 
 Then, calling `myEmailingAction` from anywhere in your app will send this test email.
 
+## Advanced Usage
+
 ### Setting up a Resend webhook
 
 While the setup we have so far will reliably send emails, you don't have any feedback
