@@ -236,7 +236,7 @@ async function scheduleBatchRun(ctx: MutationCtx, options: RuntimeConfig) {
   const runId = await ctx.scheduler.runAfter(
     BASE_BATCH_DELAY,
     internal.lib.makeBatch,
-    {}
+    { reloop: false }
   );
 
   // Insert the new worker to reserve exactly one running.
@@ -247,9 +247,9 @@ async function scheduleBatchRun(ctx: MutationCtx, options: RuntimeConfig) {
 
 // A background job that grabs batches of emails and enqueues them to be sent by the workpool.
 export const makeBatch = internalMutation({
-  args: {},
+  args: { reloop: v.boolean() },
   returns: v.null(),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     // We scan earlier than two segments ago to avoid contention between new email insertions and batch creation.
     const nowSegment = getSegment(Date.now());
     const scanSegment = nowSegment - 2;
@@ -269,14 +269,14 @@ export const makeBatch = internalMutation({
       )
       .take(BATCH_SIZE);
 
-    console.log(`Found ${emails.length} emails to send`);
 
-    // No emails to send? We should check to see if the table is just empty,
-    // or if newer segments have emails and so we should sleep for a bit before
-    // trying to make batches again.
-    if (emails.length === 0) {
-      return reschedule(ctx);
+    // If we have no emails, or we have a short batch on a reloop,
+    // let's delay working for now.
+    if (emails.length === 0 || (args.reloop && emails.length < BATCH_SIZE)) {
+      return reschedule(ctx, emails.length > 0);
     }
+
+    console.log(`Making a batch of ${emails.length} emails`);
 
     // Mark the emails as queued.
     for (const email of emails) {
@@ -304,20 +304,21 @@ export const makeBatch = internalMutation({
     );
 
     // Let's go around again until there are no more batches to make in this particular segment range.
-    await ctx.scheduler.runAfter(0, internal.lib.makeBatch, {});
+    await ctx.scheduler.runAfter(0, internal.lib.makeBatch, { reloop: true });
   },
 });
 
 // If there are no more emails to send in this segment range, we need to check to see if there are any
 // emails in newer segments and so we should sleep for a bit before trying to make batches again.
 // If the table is empty, we need to stop the worker and idle the system until a new email is inserted.
-async function reschedule(ctx: MutationCtx) {
-  const next = await ctx.db
-    .query("emails")
-    .withIndex("by_status_segment", (q) => q.eq("status", "waiting"))
-    .first();
+async function reschedule(ctx: MutationCtx, emailsLeft: boolean) {
+   emailsLeft = emailsLeft ||
+    (await ctx.db
+      .query("emails")
+      .withIndex("by_status_segment", (q) => q.eq("status", "waiting"))
+      .first()) !== null;
 
-  if (next === null) {
+  if (!emailsLeft) {
     // No next email yet?
     const batchRun = await ctx.db.query("nextBatchRun").unique();
     if (!batchRun) {
@@ -325,7 +326,9 @@ async function reschedule(ctx: MutationCtx) {
     }
     await ctx.db.delete(batchRun._id);
   } else {
-    await ctx.scheduler.runAfter(BASE_BATCH_DELAY, internal.lib.makeBatch, {});
+    await ctx.scheduler.runAfter(BASE_BATCH_DELAY, internal.lib.makeBatch, {
+      reloop: false,
+    });
   }
 }
 
