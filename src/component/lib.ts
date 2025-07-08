@@ -529,7 +529,10 @@ export const handleEmailEvent = mutation({
       .query("emails")
       .withIndex("by_resendId", (q) => q.eq("resendId", resendId))
       .unique();
-    if (!email) throw new Error("Email not found for resendId: " + resendId);
+    if (!email) {
+      console.info(`Email not found for resendId: ${resendId}, ignoring...`);
+      return;
+    }
     const cleanedEvent: EmailEvent = {
       type: event.type,
       data: {

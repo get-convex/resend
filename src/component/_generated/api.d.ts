@@ -116,6 +116,7 @@ export declare const components: {
                 period: number;
                 rate: number;
                 shards?: number;
+                start?: null;
               }
             | {
                 capacity?: number;
@@ -140,6 +141,59 @@ export declare const components: {
         { before?: number },
         null
       >;
+      getServerTime: FunctionReference<"mutation", "internal", {}, number>;
+      getValue: FunctionReference<
+        "query",
+        "internal",
+        {
+          config:
+            | {
+                capacity?: number;
+                kind: "token bucket";
+                maxReserved?: number;
+                period: number;
+                rate: number;
+                shards?: number;
+                start?: null;
+              }
+            | {
+                capacity?: number;
+                kind: "fixed window";
+                maxReserved?: number;
+                period: number;
+                rate: number;
+                shards?: number;
+                start?: number;
+              };
+          key?: string;
+          name: string;
+          sampleShards?: number;
+        },
+        {
+          config:
+            | {
+                capacity?: number;
+                kind: "token bucket";
+                maxReserved?: number;
+                period: number;
+                rate: number;
+                shards?: number;
+                start?: null;
+              }
+            | {
+                capacity?: number;
+                kind: "fixed window";
+                maxReserved?: number;
+                period: number;
+                rate: number;
+                shards?: number;
+                start?: number;
+              };
+          shard: number;
+          ts: number;
+          value: number;
+        }
+      >;
       rateLimit: FunctionReference<
         "mutation",
         "internal",
@@ -152,6 +206,7 @@ export declare const components: {
                 period: number;
                 rate: number;
                 shards?: number;
+                start?: null;
               }
             | {
                 capacity?: number;
@@ -176,6 +231,9 @@ export declare const components: {
         { key?: string; name: string },
         null
       >;
+    };
+    time: {
+      getServerTime: FunctionReference<"mutation", "internal", {}, number>;
     };
   };
   emailWorkpool: {
