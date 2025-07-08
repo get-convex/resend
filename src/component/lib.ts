@@ -539,9 +539,11 @@ export const handleEmailEvent = mutation({
         email_id: resendId,
       },
     };
+    let changed = true;
     switch (event.type) {
       case "email.sent":
         // NOOP -- we do this automatically when we send the email.
+        changed = false;
         break;
       case "email.delivered":
         email.status = "delivered";
@@ -565,6 +567,7 @@ export const handleEmailEvent = mutation({
         email.opened = true;
         break;
       case "email.clicked":
+        changed = false;
         // One email can have multiple clicks, so we don't track them for now.
         break;
       default:
@@ -572,7 +575,9 @@ export const handleEmailEvent = mutation({
         return;
     }
 
-    await ctx.db.replace(email._id, email);
+    if (changed) {
+      await ctx.db.replace(email._id, email);
+    }
     await enqueueCallbackIfExists(ctx, email, cleanedEvent);
   },
 });
