@@ -4,11 +4,7 @@ import {
   internalQuery,
 } from "./_generated/server";
 import { components, internal } from "./_generated/api";
-import {
-  vEmailId,
-  vEmailEvent,
-  Resend,
-} from "@convex-dev/resend";
+import { vEmailId, vEmailEvent, Resend } from "@convex-dev/resend";
 import { v } from "convex/values";
 
 export const resend: Resend = new Resend(components.resend, {
@@ -30,13 +26,12 @@ export const testBatch = internalAction({
     for (let i = 0; i < 25; i++) {
       const address = addresses[i % addresses.length];
       const expectation = address.split("@")[0];
-      const email = await resend.sendEmail(
-        ctx,
-        args.from,
-        address,
-        "Test Email",
-        "This is a test email"
-      );
+      const email = await resend.sendEmail(ctx, {
+        from: args.from,
+        to: address,
+        subject: "Test Email",
+        html: "This is a test email",
+      });
       await ctx.runMutation(internal.example.insertExpectation, {
         email: email,
         expectation: expectation as "delivered" | "bounced" | "complained",
@@ -95,7 +90,9 @@ export const handleEmailEvent = internalMutation({
         throw new Error("Email was delivered but expected to be bounced");
       }
       if (testEmail.expectation === "complained") {
-        console.log("Complained email was delivered, expecting complaint coming...");
+        console.log(
+          "Complained email was delivered, expecting complaint coming..."
+        );
         return;
       }
       // All good. Delivered email was delivered.

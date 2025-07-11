@@ -126,6 +126,16 @@ export type EmailStatus = {
   opened: boolean;
 };
 
+export type SendEmailOptions = {
+  from: string;
+  to: string;
+  subject: string;
+  html?: string;
+  text?: string;
+  replyTo?: string[];
+  headers?: { name: string; value: string }[];
+};
+
 export class Resend {
   public config: Config;
   onEmailEvent?: FunctionReference<
@@ -163,7 +173,25 @@ export class Resend {
   }
 
   /**
-   * Sends an email.
+   * Sends an email
+   *
+   * Specifically, enqueues your email to be sent as part of efficient, durable email batches
+   * managed by the component. The email will be sent as soon as possible, but the component
+   * will manage rate limiting and batching for efficiency.
+   *
+   * This component utilizes idempotency keys to ensure the email is sent exactly once.
+   *
+   * @param ctx Any context that can run a mutation. You can enqueue an email from
+   * either a mutation or an action.
+   * @param options The {@link SendEmailOptions} object containing all email parameters.
+   * @returns The id of the email within the component.
+   */
+  async sendEmail(
+    ctx: RunMutationCtx,
+    options: SendEmailOptions
+  ): Promise<EmailId>;
+  /**
+   * Sends an email by providing individual arguments for `from`, `to`, `subject`, and optionally `html`, `text`, `replyTo`, and `headers`.
    *
    * Specifically, enqueues your email to be sent as part of efficient, durable email batches
    * managed by the component. The email will be sent as soon as possible, but the component
@@ -191,20 +219,38 @@ export class Resend {
     text?: string,
     replyTo?: string[],
     headers?: { name: string; value: string }[]
+  ): Promise<EmailId>;
+  /** @deprecated Use the object format e.g. `{ from, to, subject, html }` */
+  async sendEmail(
+    ctx: RunMutationCtx,
+    fromOrOptions: string | SendEmailOptions,
+    to?: string,
+    subject?: string,
+    html?: string,
+    text?: string,
+    replyTo?: string[],
+    headers?: { name: string; value: string }[]
   ) {
-    if (this.config.apiKey === "") {
-      throw new Error("API key is not set");
-    }
+    const sendEmailArgs =
+      typeof fromOrOptions === "string"
+        ? {
+            from: fromOrOptions,
+            to: to!,
+            subject: subject!,
+            html,
+            text,
+            replyTo,
+            headers,
+          }
+        : fromOrOptions;
+
+    if (this.config.apiKey === "") throw new Error("API key is not set");
+
     const id = await ctx.runMutation(this.component.lib.sendEmail, {
       options: await configToRuntimeConfig(this.config, this.onEmailEvent),
-      from,
-      to,
-      subject,
-      html,
-      text,
-      replyTo,
-      headers,
+      ...sendEmailArgs,
     });
+
     return id as EmailId;
   }
 
