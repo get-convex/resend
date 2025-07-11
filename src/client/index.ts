@@ -173,7 +173,7 @@ export class Resend {
   }
 
   /**
-   * Sends an email by providing an object with all the email options. This is the recommended approach.
+   * Sends an email
    *
    * Specifically, enqueues your email to be sent as part of efficient, durable email batches
    * managed by the component. The email will be sent as soon as possible, but the component
