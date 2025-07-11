@@ -220,6 +220,7 @@ export class Resend {
     replyTo?: string[],
     headers?: { name: string; value: string }[]
   ): Promise<EmailId>;
+  /** @deprecated Use the object format e.g. `{ from, to, subject, html }` */
   async sendEmail(
     ctx: RunMutationCtx,
     fromOrOptions: string | SendEmailOptions,
