@@ -50,13 +50,12 @@ export const resend: Resend = new Resend(components.resend, {});
 
 export const sendTestEmail = internalMutation({
   handler: async (ctx) => {
-    await resend.sendEmail(
-      ctx,
-      "Me <test@mydomain.com>",
-      "Resend <delivered@resend.dev>",
-      "Hi there",
-      "This is a test email"
-    );
+    await resend.sendEmail(ctx, {
+      from: "Me <test@mydomain.com>",
+      to: "Resend <delivered@resend.dev>",
+      subject: "Hi there",
+      html: "This is a test email",
+    });
   },
 });
 ```
