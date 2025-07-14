@@ -5,7 +5,7 @@ const crons = cronJobs();
 
 crons.interval(
   "Remove old, delivered/bounced emails from database",
-  { hours: 1 }, // Every five minutes
+  { hours: 1 },
   internal.lib.cleanupOldEmails
 );
 crons.interval(
