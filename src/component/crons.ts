@@ -10,7 +10,7 @@ crons.interval(
 );
 crons.interval(
   "Remove abandoned emails from database that will never finalize",
-  { hours: 1 }, // Every five minutes
+  { hours: 1 },
   internal.lib.cleanupAbandonedEmails
 );
 
