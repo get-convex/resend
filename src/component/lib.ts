@@ -13,9 +13,9 @@ import { components, internal } from "./_generated/api";
 import { internalMutation } from "./_generated/server";
 import { Id, Doc } from "./_generated/dataModel";
 import { RuntimeConfig, vOptions, vStatus } from "./shared";
-import _ from "lodash";
 import { FunctionHandle } from "convex/server";
 import { EmailEvent, RunMutationCtx } from "./shared";
+import { isDeepEqual } from "remeda";
 
 // Move some of these to options? TODO
 const SEGMENT_MS = 125;
@@ -219,7 +219,7 @@ async function scheduleBatchRun(ctx: MutationCtx, options: RuntimeConfig) {
     await ctx.db.insert("lastOptions", {
       options,
     });
-  } else if (!_.isEqual(lastOptions.options, options)) {
+  } else if (!isDeepEqual(lastOptions.options, options)) {
     await ctx.db.replace(lastOptions._id, {
       options,
     });
