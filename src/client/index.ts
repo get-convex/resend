@@ -1,19 +1,23 @@
 import {
   createFunctionHandle,
-  Expand,
-  FunctionReference,
-  FunctionVisibility,
+  type Expand,
+  type FunctionReference,
+  type FunctionVisibility,
 } from "convex/server";
-import { GenericId, v, VString } from "convex/values";
-import { api } from "../component/_generated/api";
-import { RuntimeConfig, Status } from "../component/shared";
+import { type GenericId, v, type VString } from "convex/values";
+import { api } from "../component/_generated/api.js";
+import { type RuntimeConfig, type Status } from "../component/shared.js";
 import { Webhook } from "svix";
-import { EmailEvent, RunMutationCtx, RunQueryCtx } from "../component/shared";
+import {
+  type EmailEvent,
+  type RunMutationCtx,
+  type RunQueryCtx,
+} from "../component/shared.js";
 
 export type EmailId = string & { __isEmailId: true };
 export const vEmailId = v.string() as VString<EmailId>;
-export { vEmailEvent, vStatus, vOptions } from "../component/shared";
-export type { Status, EmailEvent } from "../component/shared";
+export { vEmailEvent, vStatus, vOptions } from "../component/shared.js";
+export type { Status, EmailEvent } from "../component/shared.js";
 
 type Config = RuntimeConfig & {
   webhookSecret: string;

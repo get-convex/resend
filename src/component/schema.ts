@@ -1,6 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
-import { vOptions, vStatus } from "./shared";
+import { vOptions, vStatus } from "./shared.js";
 
 export default defineSchema({
   content: defineTable({

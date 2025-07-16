@@ -2,19 +2,19 @@ import { v } from "convex/values";
 import {
   internalAction,
   mutation,
-  MutationCtx,
+  type MutationCtx,
   query,
   internalQuery,
-  ActionCtx,
-} from "./_generated/server";
+  type ActionCtx,
+} from "./_generated/server.js";
 import { Workpool } from "@convex-dev/workpool";
 import { RateLimiter } from "@convex-dev/rate-limiter";
-import { components, internal } from "./_generated/api";
-import { internalMutation } from "./_generated/server";
-import { Id, Doc } from "./_generated/dataModel";
-import { RuntimeConfig, vOptions, vStatus } from "./shared";
-import { FunctionHandle } from "convex/server";
-import { EmailEvent, RunMutationCtx } from "./shared";
+import { components, internal } from "./_generated/api.js";
+import { internalMutation } from "./_generated/server.js";
+import { type Id, type Doc } from "./_generated/dataModel.js";
+import { type RuntimeConfig, vOptions, vStatus } from "./shared.js";
+import { type FunctionHandle } from "convex/server";
+import { type EmailEvent, type RunMutationCtx } from "./shared.js";
 import { isDeepEqual } from "remeda";
 
 // Move some of these to options? TODO

@@ -1,5 +1,9 @@
-import { GenericDataModel, GenericMutationCtx, GenericQueryCtx } from "convex/server";
-import { Infer, v } from "convex/values";
+import {
+  type GenericDataModel,
+  type GenericMutationCtx,
+  type GenericQueryCtx,
+} from "convex/server";
+import { type Infer, v } from "convex/values";
 
 // Validator for the onEmailEvent option.
 export const onEmailEvent = v.object({
