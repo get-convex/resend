@@ -22,7 +22,7 @@
     "setup": "npm i && npm run build && cd example && npm i && npx convex dev --once --live-component-sources --typecheck-components",
     "build:watch": "cd src && npx chokidar -d 1000 '../tsconfig.json' '**/*.ts' -c 'npm run build' --initial",
     "build": "npm run build:esm && npm run build:cjs",
-    "build:esm": "tsc --project ./esm.json && echo '{\\n  \"type\": \"module\"\\n}' > dist/esm/package.json",
+    "build:esm": "tsc --project ./esm.json && tsc-alias -p ./esm.json && echo '{\\n  \"type\": \"module\"\\n}' > dist/esm/package.json",
     "build:cjs": "tsc --project ./commonjs.json && echo '{\\n  \"type\": \"commonjs\"\\n}' > dist/commonjs/package.json",
     "alpha": "npm run clean && npm run build && run-p test lint typecheck && npm version prerelease --preid alpha && npm publish --tag alpha && git push --tags",
     "release": "npm run clean && npm run build && run-p test lint typecheck && npm version patch && npm publish && git push --tags",
@@ -78,6 +78,7 @@
     "globals": "^15.9.0",
     "npm-run-all2": "^7.0.2",
     "prettier": "3.2.5",
+    "tsc-alias": "^1.8.16",
     "typescript": "^5.5",
     "typescript-eslint": "^8.4.0",
     "vitest": "^2.1.4"
