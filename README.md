@@ -1,4 +1,4 @@
-# Resend Convex Component (Beta)
+# Resend Convex Component
 
 [![npm version](https://badge.fury.io/js/@convex-dev%2Fresend.svg)](https://badge.fury.io/js/@convex-dev%2Fresend)
 
