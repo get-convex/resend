@@ -20,3 +20,4 @@ jobs:
       - run: npm i
       - run: npm ci
       - run: cd example && npm i && cd ..
+      - run: npx pkg-pr-new publish
