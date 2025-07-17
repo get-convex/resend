@@ -38,9 +38,9 @@ async function processSubPackages(packageJsonPath, exports, cleanup = false) {
       }
     } else {
       const newPackageJson = {
-        main: `../dist/commonjs/${subDir}/index.js`,
-        module: `../dist/esm/${subDir}/index.js`,
-        types: `../dist/commonjs/${subDir}/index.d.ts`,
+        main: `../dist/${subDir}/index.js`,
+        module: `../dist/${subDir}/index.js`,
+        types: `../dist/${subDir}/index.d.ts`,
       };
 
       await fs.mkdir(newDir, { recursive: true });

@@ -8,10 +8,11 @@
     "lib": ["ES2021", "dom"],
     "forceConsistentCasingInFileNames": true,
     "allowSyntheticDefaultImports": true,
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
 
     "isolatedModules": true,
+    "verbatimModuleSyntax": true,
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
