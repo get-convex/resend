@@ -7,7 +7,7 @@
     "email": "support@convex.dev",
     "url": "https://github.com/get-convex/resend/issues"
   },
-  "version": "0.1.4-alpha.1",
+  "version": "0.1.4",
   "license": "Apache-2.0",
   "keywords": [
     "convex",
