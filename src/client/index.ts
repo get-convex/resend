@@ -107,6 +107,7 @@ export type EmailStatus = {
    * The status of the email. It will be one of the following:
    * - `waiting`: The email has not yet been batched.
    * - `queued`: The email has been batched and is waiting to be sent.
+   * - `cancelled`: The email has been cancelled.
    * - `sent`: The email has been sent to Resend, but we do not yet know its fate.
    * - `bounced`: The email bounced.
    * - `delivered`: The email was delivered successfully.
