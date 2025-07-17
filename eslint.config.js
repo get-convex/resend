@@ -8,6 +8,7 @@ export default [
     ignores: [
       "dist/**",
       "eslint.config.js",
+      "example/eslint.config.js",
       "**/_generated/",
       "node10stubs.mjs",
     ],
@@ -18,7 +19,7 @@ export default [
       parser: tseslint.parser,
 
       parserOptions: {
-        project: true,
+        project: ["./tsconfig.json", "./example/tsconfig.json"],
         tsconfigRootDir: ".",
       },
     },
@@ -28,6 +29,13 @@ export default [
   {
     rules: {
       "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/consistent-type-imports": [
+        "error",
+        {
+          prefer: "type-imports",
+          fixStyle: "separate-type-imports",
+        },
+      ],
       "eslint-comments/no-unused-disable": "off",
 
       // allow (_arg: number) => {} and const _foo = 1;
