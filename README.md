@@ -16,6 +16,8 @@ Features:
 See [example](./example) for a demo of how to incorporate this hook into your
 application.
 
+[![Navigate the Email MINEFIELD with the Resend Component!](https://thumbs.video-to-markdown.com/bf0f179c.jpg)](https://youtu.be/iIq67N8vuMU)
+
 ## Installation
 
 ```bash
