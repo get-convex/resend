@@ -34,6 +34,7 @@ export default [
         {
           prefer: "type-imports",
           fixStyle: "separate-type-imports",
+          disallowTypeAnnotations: false,
         },
       ],
       "eslint-comments/no-unused-disable": "off",

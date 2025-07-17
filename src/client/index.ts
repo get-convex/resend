@@ -5,7 +5,7 @@ import {
   type FunctionVisibility,
 } from "convex/server";
 import { type GenericId, v, type VString } from "convex/values";
-import { api } from "../component/_generated/api.js";
+import type { api } from "../component/_generated/api.js";
 import { type RuntimeConfig, type Status } from "../component/shared.js";
 import { Webhook } from "svix";
 import {
