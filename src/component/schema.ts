@@ -21,7 +21,8 @@ export default defineSchema({
     link: v.string(),
     timestamp: v.string(),
     userAgent: v.string(),
-  }),
+  })
+    .index("by_emailId", ["emailId"]),
   emails: defineTable({
     from: v.string(),
     to: v.string(),
