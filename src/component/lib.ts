@@ -12,7 +12,12 @@ import { RateLimiter } from "@convex-dev/rate-limiter";
 import { components, internal } from "./_generated/api.js";
 import { internalMutation } from "./_generated/server.js";
 import { type Id, type Doc } from "./_generated/dataModel.js";
-import { type RuntimeConfig, vOptions, vStatus } from "./shared.js";
+import {
+  type ClickEvent,
+  type RuntimeConfig,
+  vOptions,
+  vStatus,
+} from "./shared.js";
 import { type FunctionHandle } from "convex/server";
 import { type EmailEvent, type RunMutationCtx } from "./shared.js";
 import { isDeepEqual } from "remeda";
@@ -127,6 +132,7 @@ export const sendEmail = mutation({
       status: "waiting",
       complained: false,
       opened: false,
+      clicks: [],
       replyTo: args.replyTo ?? [],
       finalizedAt: FINALIZED_EPOCH,
     });
@@ -537,6 +543,7 @@ export const handleEmailEvent = mutation({
       type: event.type,
       data: {
         email_id: resendId,
+        click: event.data?.click,
       },
     };
     let changed = true;
@@ -566,10 +573,32 @@ export const handleEmailEvent = mutation({
       case "email.opened":
         email.opened = true;
         break;
-      case "email.clicked":
-        changed = false;
-        // One email can have multiple clicks, so we don't track them for now.
+      case "email.clicked": {
+        const lastOptions = await ctx.db.query("lastOptions").unique();
+        if (!lastOptions) {
+          throw new Error("No last options found -- invariant");
+        }
+
+        const hasHandleClickEnabled = lastOptions.options.handleClick;
+        const clickData = cleanedEvent.data?.click;
+
+        if (!hasHandleClickEnabled || !clickData) {
+          changed = false;
+          break;
+        }
+
+        const clickId = await ctx.db.insert("emailClicks", {
+          emailId: email._id,
+          ipAddress: clickData?.ipAddress ?? "",
+          link: clickData?.link ?? "",
+          timestamp: clickData?.timestamp ?? new Date().toISOString(),
+          userAgent: clickData?.userAgent ?? "",
+        });
+
+        email.clicks.push(clickId);
+
         break;
+      }
       default:
         // Ignore other events
         return;

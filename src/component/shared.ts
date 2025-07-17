@@ -29,9 +29,19 @@ export const vOptions = v.object({
   apiKey: v.string(),
   testMode: v.boolean(),
   onEmailEvent: v.optional(onEmailEvent),
+  handleClick: v.optional(v.boolean()),
 });
 
 export type RuntimeConfig = Infer<typeof vOptions>;
+
+export const vClickEvent = v.object({
+  ipAddress: v.string(),
+  link: v.string(),
+  timestamp: v.string(),
+  userAgent: v.string(),
+});
+
+export type ClickEvent = Infer<typeof vClickEvent>;
 
 // Normalized webhook events coming from Resend.
 export const vEmailEvent = v.object({
@@ -43,6 +53,7 @@ export const vEmailEvent = v.object({
         message: v.optional(v.string()),
       })
     ),
+    click: v.optional(vClickEvent),
   }),
 });
 export type EmailEvent = Infer<typeof vEmailEvent>;

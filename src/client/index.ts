@@ -30,6 +30,7 @@ function getDefaultConfig(): Config {
     initialBackoffMs: 30000,
     retryAttempts: 5,
     testMode: true,
+    handleClick: false,
   };
 }
 
@@ -78,6 +79,12 @@ export type ResendOptions = {
       event: EmailEvent;
     }
   > | null;
+
+  /**
+   * Whether to store email.clicked events.
+   * Default: false
+   */
+  handleClick?: boolean;
 };
 
 async function configToRuntimeConfig(
@@ -171,6 +178,7 @@ export class Resend {
         options?.initialBackoffMs ?? defaultConfig.initialBackoffMs,
       retryAttempts: options?.retryAttempts ?? defaultConfig.retryAttempts,
       testMode: options?.testMode ?? defaultConfig.testMode,
+      handleClick: options?.handleClick ?? defaultConfig.handleClick,
     };
     if (options?.onEmailEvent) {
       this.onEmailEvent = options.onEmailEvent;

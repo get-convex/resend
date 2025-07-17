@@ -15,6 +15,14 @@ export default defineSchema({
   lastOptions: defineTable({
     options: vOptions,
   }),
+  emailClicks: defineTable({
+    emailId: v.id("emails"),
+    ipAddress: v.string(),
+    link: v.string(),
+    timestamp: v.string(),
+    userAgent: v.string(),
+  })
+    .index("by_emailId", ["emailId"]),
   emails: defineTable({
     from: v.string(),
     to: v.string(),
@@ -30,6 +38,7 @@ export default defineSchema({
         })
       )
     ),
+    clicks: v.array(v.id("emailClicks")),
     status: vStatus,
     errorMessage: v.optional(v.string()),
     complained: v.boolean(),
