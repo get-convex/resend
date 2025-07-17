@@ -11,7 +11,7 @@ import { Workpool } from "@convex-dev/workpool";
 import { RateLimiter } from "@convex-dev/rate-limiter";
 import { components, internal } from "./_generated/api.js";
 import { internalMutation } from "./_generated/server.js";
-import { type Id, type Doc } from "./_generated/dataModel.js";
+import type { Id, Doc } from "./_generated/dataModel.js";
 import { type RuntimeConfig, vOptions, vStatus } from "./shared.js";
 import { type FunctionHandle } from "convex/server";
 import { type EmailEvent, type RunMutationCtx } from "./shared.js";
