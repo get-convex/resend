@@ -21,8 +21,7 @@
     "all": "run-p -r 'example' 'build:watch' 'test:watch'",
     "setup": "npm i && npm run build && cd example && npm i && npx convex dev --once --live-component-sources --typecheck-components",
     "build:watch": "npx chokidar 'tsconfig*.json' 'src/**/*.ts' -c 'npm run build' --initial",
-    "build": "tsc --project ./tsconfig.build.json && npm run copy:dts && echo '{\\n  \"type\": \"module\"\\n}' > dist/package.json",
-    "copy:dts": "rsync -a --include='*/' --include='*.d.ts' --exclude='*' src/ dist/ || cpy 'src/**/*.d.ts' 'dist/' --parents",
+    "build": "tsc --project ./tsconfig.build.json && tsc-alias -p tsconfig.build.json",
     "alpha": "npm run clean && npm run build && run-p test lint typecheck && npm version prerelease --preid alpha && npm publish --tag alpha && git push --tags",
     "release": "npm run clean && npm run build && run-p test lint typecheck && npm version patch && npm publish && git push --tags",
     "clean": "rm -rf dist tsconfig.build.tsbuildinfo",
@@ -69,6 +68,7 @@
     "npm-run-all2": "^7.0.2",
     "pkg-pr-new": "^0.0.54",
     "prettier": "3.2.5",
+    "tsc-alias": "^1.8.16",
     "typescript": "^5.5",
     "typescript-eslint": "^8.4.0",
     "vitest": "^2.1.4"
