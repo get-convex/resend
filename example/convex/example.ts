@@ -59,7 +59,6 @@ export const sendOne = internalAction({
     while (status.status === "queued" || status.status === "waiting") {
       await new Promise((resolve) => setTimeout(resolve, 1000));
       status = await resend.status(ctx, email);
-      console.log("Email status", status);
     }
     console.log("Email status", status);
     return email;
