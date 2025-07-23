@@ -317,7 +317,7 @@ export class Resend {
     emailId: EmailId
   ): Promise<{
     from: string;
-    to: string;
+    to: string[];
     subject: string;
     replyTo: string[];
     headers?: { name: string; value: string }[];
