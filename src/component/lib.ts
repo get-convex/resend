@@ -37,6 +37,15 @@ const RESEND_TEST_EMAILS = new Set([
   "complained@resend.dev",
 ]);
 
+const PERMANENT_ERROR_CODES = new Set([
+  400, 401 /* 402 not included - unclear spec */, 403, 404, 405, 406, 407, 408,
+  /* 409 not included - conflict may work on retry */
+  410, 411 /* 412 not included - precondition may have changed? */, 413, 414,
+  415, 416 /* 417, not included - expectation may be met later? */, 418, 421,
+  422 /*423, 424, 425, may change over time */, 426, 427,
+  428 /* 429, explicitly asked to retry */, 431 /* 451, laws change? */,
+]);
+
 // We break the emails into segments to avoid contention on new emails being inserted.
 function getSegment(now: number) {
   return Math.floor(now / SEGMENT_MS);
@@ -400,7 +409,7 @@ export const callResendAPIWithBatch = internalAction({
       body,
     });
     if (!response.ok) {
-      if (response.status >= 400 && response.status < 420) {
+      if (PERMANENT_ERROR_CODES.has(response.status)) {
         // report the error to the user
         await ctx.runMutation(internal.lib.markEmailsFailed, {
           emailIds: args.emails,
