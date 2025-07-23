@@ -9,7 +9,7 @@ import {
 } from "./_generated/server.js";
 import { Workpool } from "@convex-dev/workpool";
 import { RateLimiter } from "@convex-dev/rate-limiter";
-import { components, internal } from "./_generated/api.js";
+import { api, components, internal } from "./_generated/api.js";
 import { internalMutation } from "./_generated/server.js";
 import { type Id, type Doc } from "./_generated/dataModel.js";
 import { type RuntimeConfig, vOptions, vStatus } from "./shared.js";
@@ -700,14 +700,15 @@ async function enqueueCallbackIfExists(
 
 // Periodic background job to clean up old emails that have already
 // been delivered, bounced, what have you.
-export const cleanupOldEmails = internalMutation({
-  args: {},
+export const cleanupOldEmails = mutation({
+  args: { olderThan: v.optional(v.number()) },
   returns: v.null(),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
+    const olderThan = args.olderThan ?? FINALIZED_EMAIL_RETENTION_MS;
     const oldAndDone = await ctx.db
       .query("emails")
       .withIndex("by_finalizedAt", (q) =>
-        q.lt("finalizedAt", Date.now() - FINALIZED_EMAIL_RETENTION_MS)
+        q.lt("finalizedAt", Date.now() - olderThan)
       )
       .take(500);
     for (const email of oldAndDone) {
@@ -723,21 +724,24 @@ export const cleanupOldEmails = internalMutation({
       console.log(`Cleaned up ${oldAndDone.length} emails`);
     }
     if (oldAndDone.length === 500) {
-      await ctx.scheduler.runAfter(0, internal.lib.cleanupOldEmails, {});
+      await ctx.scheduler.runAfter(0, api.lib.cleanupOldEmails, {
+        olderThan,
+      });
     }
   },
 });
 
 // Periodic background job to clean up old emails that have been abandoned.
 // Meaning, even if they're not finalized, we should just get rid of them.
-export const cleanupAbandonedEmails = internalMutation({
-  args: {},
+export const cleanupAbandonedEmails = mutation({
+  args: { olderThan: v.optional(v.number()) },
   returns: v.null(),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
+    const olderThan = args.olderThan ?? ABANDONED_EMAIL_RETENTION_MS;
     const oldAndAbandoned = await ctx.db
       .query("emails")
       .withIndex("by_creation_time", (q) =>
-        q.lt("_creationTime", Date.now() - ABANDONED_EMAIL_RETENTION_MS)
+        q.lt("_creationTime", Date.now() - olderThan)
       )
       .take(500);
 
@@ -755,7 +759,9 @@ export const cleanupAbandonedEmails = internalMutation({
       console.log(`Cleaned up ${oldAndAbandoned.length} emails`);
     }
     if (oldAndAbandoned.length === 500) {
-      await ctx.scheduler.runAfter(0, internal.lib.cleanupAbandonedEmails, {});
+      await ctx.scheduler.runAfter(0, api.lib.cleanupAbandonedEmails, {
+        olderThan,
+      });
     }
   },
 });
