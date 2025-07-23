@@ -65,7 +65,8 @@ export declare const components: {
             | "sent"
             | "delivered"
             | "delivery_delayed"
-            | "bounced";
+            | "bounced"
+            | "failed";
         }
       >;
       handleEmailEvent: FunctionReference<
