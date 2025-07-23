@@ -45,6 +45,27 @@ export const testBatch = internalAction({
   },
 });
 
+export const sendOne = internalAction({
+  args: { to: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const email = await resend.sendEmail(ctx, {
+      from: "<your-verified-sender-address>",
+      to: args.to ?? "delivered@resend.dev",
+      subject: "Test Email",
+      html: "This is a test email",
+    });
+    console.log("Email sent", email);
+    let status = await resend.status(ctx, email);
+    while (status.status === "queued" || status.status === "waiting") {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      status = await resend.status(ctx, email);
+      console.log("Email status", status);
+    }
+    console.log("Email status", status);
+    return email;
+  },
+});
+
 export const insertExpectation = internalMutation({
   args: {
     email: v.string(),
