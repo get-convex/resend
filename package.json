@@ -69,14 +69,14 @@
     "tsc-alias": "^1.8.16",
     "typescript": "^5.5",
     "typescript-eslint": "^8.4.0",
-    "vitest": "^2.1.4"
+    "vitest": "^3.2.4"
   },
   "main": "./dist/client/index.js",
   "types": "./dist/client/index.d.ts",
   "module": "./dist/client/index.js",
   "dependencies": {
     "@convex-dev/rate-limiter": "^0.2.10",
-    "@convex-dev/workpool": "^0.2.10",
+    "@convex-dev/workpool": "^0.2.17",
     "remeda": "^2.26.0",
     "svix": "^1.67.0"
   }
