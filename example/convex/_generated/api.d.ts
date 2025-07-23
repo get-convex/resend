@@ -68,6 +68,8 @@ export declare const components: {
         "internal",
         { emailId: string },
         {
+          bcc?: Array<string>;
+          cc?: Array<string>;
           complained: boolean;
           createdAt: number;
           errorMessage?: string;
@@ -122,6 +124,8 @@ export declare const components: {
         "mutation",
         "internal",
         {
+          bcc?: Array<string>;
+          cc?: Array<string>;
           from: string;
           headers?: Array<{ name: string; value: string }>;
           html?: string;

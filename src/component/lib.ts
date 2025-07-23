@@ -83,6 +83,8 @@ export const sendEmail = mutation({
     options: vOptions,
     from: v.string(),
     to: v.string(),
+    cc: v.optional(v.array(v.string())),
+    bcc: v.optional(v.array(v.string())),
     subject: v.string(),
     html: v.optional(v.string()),
     text: v.optional(v.string()),
@@ -136,6 +138,8 @@ export const sendEmail = mutation({
     const emailId = await ctx.db.insert("emails", {
       from: args.from,
       to: args.to,
+      cc: args.cc,
+      bcc: args.bcc,
       subject: args.subject,
       html: htmlContentId,
       text: textContentId,
@@ -544,9 +548,11 @@ async function createResendBatchPayload(
     from: email.from,
     to: [email.to],
     subject: email.subject,
+    bcc: email.bcc,
+    cc: email.cc,
     html: email.html ? contentMap.get(email.html) : undefined,
     text: email.text ? contentMap.get(email.text) : undefined,
-    reply_to: email.replyTo && email.replyTo.length ? email.replyTo : undefined,
+    reply_to: email.replyTo ? email.replyTo : undefined,
     headers: email.headers
       ? Object.fromEntries(
           email.headers.map((h: { name: string; value: string }) => [
