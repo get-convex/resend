@@ -39,7 +39,34 @@ export type Mounts = {
       { emailId: string },
       null
     >;
-    get: FunctionReference<"query", "public", { emailId: string }, any>;
+    get: FunctionReference<
+      "query",
+      "public",
+      { emailId: string },
+      {
+        complained: boolean;
+        errorMessage?: string;
+        finalizedAt: number;
+        from: string;
+        headers?: Array<{ name: string; value: string }>;
+        html?: string;
+        opened: boolean;
+        replyTo: Array<string>;
+        resendId?: string;
+        segment: number;
+        status:
+          | "waiting"
+          | "queued"
+          | "cancelled"
+          | "sent"
+          | "delivered"
+          | "delivery_delayed"
+          | "bounced";
+        subject: string;
+        text?: string;
+        to: string;
+      }
+    >;
     getStatus: FunctionReference<
       "query",
       "public",

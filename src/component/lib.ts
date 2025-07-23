@@ -16,6 +16,8 @@ import { type RuntimeConfig, vOptions, vStatus } from "./shared.js";
 import type { FunctionHandle } from "convex/server";
 import type { EmailEvent, RunMutationCtx } from "./shared.js";
 import { isDeepEqual } from "remeda";
+import schema from "./schema.js";
+import { omit } from "convex-helpers";
 
 // Move some of these to options? TODO
 const SEGMENT_MS = 125;
@@ -189,14 +191,13 @@ export const get = query({
   args: {
     emailId: v.id("emails"),
   },
-  handler: async (
-    ctx,
-    args
-  ): Promise<{
-    email: Doc<"emails">;
-    html: string | undefined;
-    text: string | undefined;
-  }> => {
+  returns: v.object({
+    ...omit(schema.tables.emails.validator.fields, ["html", "text"]),
+    createdAt: v.number(),
+    html: v.optional(v.string()),
+    text: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
     const email = await ctx.db.get(args.emailId);
     if (!email) {
       throw new Error("Email not found");
@@ -207,7 +208,12 @@ export const get = query({
     const text = email.text
       ? new TextDecoder().decode((await ctx.db.get(email.text))?.content)
       : undefined;
-    return { email, html, text };
+    return {
+      ...omit(email, ["html", "text", "_id", "_creationTime"]),
+      createdAt: email._creationTime,
+      html,
+      text,
+    };
   },
 });
 
