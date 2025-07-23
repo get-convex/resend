@@ -82,7 +82,7 @@ export const sendEmail = mutation({
   args: {
     options: vOptions,
     from: v.string(),
-    to: v.string(),
+    to: v.array(v.string()),
     cc: v.optional(v.array(v.string())),
     bcc: v.optional(v.array(v.string())),
     subject: v.string(),
@@ -274,6 +274,7 @@ export const get = query({
       createdAt: v.number(),
       html: v.optional(v.string()),
       text: v.optional(v.string()),
+      to: v.array(v.string()),
     }),
     v.null()
   ),
@@ -293,6 +294,7 @@ export const get = query({
       createdAt: email._creationTime,
       html,
       text,
+      to: Array.isArray(email.to) ? email.to : [email.to],
     };
   },
 });
@@ -598,7 +600,7 @@ async function createResendBatchPayload(
   // Build payload for resend API.
   const batchPayload = emails.map((email: Doc<"emails">) => ({
     from: email.from,
-    to: [email.to],
+    to: Array.isArray(email.to) ? email.to : [email.to],
     subject: email.subject,
     bcc: email.bcc,
     cc: email.cc,
