@@ -18,6 +18,7 @@ import type { EmailEvent, RunMutationCtx } from "./shared.js";
 import { isDeepEqual } from "remeda";
 import schema from "./schema.js";
 import { omit } from "convex-helpers";
+import { parse } from "convex-helpers/validators";
 
 // Move some of these to options? TODO
 const SEGMENT_MS = 125;
@@ -303,6 +304,8 @@ export const makeBatch = internalMutation({
           initialBackoffMs: options.initialBackoffMs,
           base: 2,
         },
+        context: { emailIds: emails.map((e) => e._id) },
+        onComplete: internal.lib.onEmailComplete,
       }
     );
 
@@ -352,23 +355,32 @@ async function getAllContent(
   return new Map(docs.map((doc) => [doc.id, doc.content]));
 }
 
+const vBatchReturns = v.union(
+  v.null(),
+  v.object({
+    emailIds: v.array(v.id("emails")),
+    resendIds: v.array(v.string()),
+  })
+);
+
 // Okay, finally! Let's call the Resend API with the batch of emails.
 export const callResendAPIWithBatch = internalAction({
   args: {
     apiKey: v.string(),
     emails: v.array(v.id("emails")),
   },
-  returns: v.null(),
+  returns: vBatchReturns,
   handler: async (ctx, args) => {
     // Construct the JSON payload for the Resend API from all the database values.
     const batchPayload = await createResendBatchPayload(ctx, args.emails);
 
     if (batchPayload === null) {
       // No emails to send.
-      console.log("No emails to send in batch. All are cancelled.");
+      console.log("No emails to send in batch. All were cancelled or failed.");
       return;
     }
 
+    const [emailIds, body] = batchPayload;
     // Okay, let's calculate rate limiting as best we can globally in this distributed system.
     const goTime = await getGoTime(ctx);
     const delay = goTime - Date.now();
@@ -385,9 +397,17 @@ export const callResendAPIWithBatch = internalAction({
         "Content-Type": "application/json",
         "Idempotency-Key": args.emails[0].toString(),
       },
-      body: batchPayload,
+      body,
     });
     if (!response.ok) {
+      if (response.status >= 400 && response.status < 420) {
+        // report the error to the user
+        await ctx.runMutation(internal.lib.markEmailsFailed, {
+          emailIds: args.emails,
+          errorMessage: `Resend API error: ${response.status} ${response.statusText} ${await response.text()}`,
+        });
+        return;
+      }
       // For now, try again.
       const errorText = await response.text();
       throw new Error(`Resend API error: ${errorText}`);
@@ -396,10 +416,83 @@ export const callResendAPIWithBatch = internalAction({
       if (!data.data) {
         throw new Error("Resend API error: No data returned");
       }
-      await ctx.runMutation(internal.lib.markEmailsSent, {
-        emailIds: args.emails,
-        resendIds: args.emails.map((_, i) => data.data[i]?.id),
+      return {
+        emailIds,
+        resendIds: data.data.map((d: { id: string }) => d.id),
+      };
+    }
+  },
+});
+
+export const markEmailsFailed = internalMutation({
+  args: {
+    emailIds: v.array(v.id("emails")),
+    errorMessage: v.string(),
+  },
+  returns: v.null(),
+  handler: markEmailsFailedHandler,
+});
+
+async function markEmailsFailedHandler(
+  ctx: MutationCtx,
+  args: {
+    emailIds: Id<"emails">[];
+    errorMessage: string;
+  }
+) {
+  await Promise.all(
+    args.emailIds.map(async (emailId) => {
+      const email = await ctx.db.get(emailId);
+      if (!email || email.status !== "queued") {
+        return;
+      }
+      await ctx.db.patch(emailId, {
+        status: "failed",
+        errorMessage: args.errorMessage,
+        finalizedAt: Date.now(),
       });
+    })
+  );
+}
+
+export const onEmailComplete = emailPool.defineOnComplete({
+  context: v.object({
+    emailIds: v.array(v.id("emails")),
+  }),
+  handler: async (ctx, args) => {
+    if (args.result.kind === "success") {
+      const result = parse(vBatchReturns, args.result.returnValue);
+      if (result === null) {
+        return;
+      }
+      const { emailIds, resendIds } = result;
+      await Promise.all(
+        emailIds.map((emailId, i) =>
+          ctx.db.patch(emailId, {
+            status: "sent",
+            resendId: resendIds[i],
+          })
+        )
+      );
+    } else if (args.result.kind === "failed") {
+      await markEmailsFailedHandler(ctx, {
+        emailIds: args.context.emailIds,
+        errorMessage: args.result.error,
+      });
+    } else if (args.result.kind === "canceled") {
+      await Promise.all(
+        args.context.emailIds.map(async (emailId) => {
+          const email = await ctx.db.get(emailId);
+          if (!email || email.status !== "queued") {
+            return;
+          }
+          await ctx.db.patch(emailId, {
+            status: "cancelled",
+            errorMessage: "Resend API batch job was cancelled",
+            finalizedAt: Date.now(),
+          });
+        })
+      );
     }
   },
 });
@@ -408,13 +501,13 @@ export const callResendAPIWithBatch = internalAction({
 async function createResendBatchPayload(
   ctx: ActionCtx,
   emailIds: Id<"emails">[]
-): Promise<string | null> {
+): Promise<[Id<"emails">[], string] | null> {
   // Fetch emails from database.
   const allEmails = await ctx.runQuery(internal.lib.getEmailsByIds, {
     emailIds,
   });
   // Filter out cancelled emails.
-  const emails = allEmails.filter((e) => e.status !== "cancelled");
+  const emails = allEmails.filter((e) => e.status === "queued");
   if (emails.length === 0) {
     return null;
   }
@@ -444,7 +537,7 @@ async function createResendBatchPayload(
       : undefined,
   }));
 
-  return JSON.stringify(batchPayload);
+  return [emails.map((e) => e._id), JSON.stringify(batchPayload)];
 }
 
 const FIXED_WINDOW_DELAY = 100;
@@ -488,25 +581,6 @@ export const getEmailsByIds = internalQuery({
     // Some emails might be missing b/c they were cancelled long ago and already
     // cleaned up because the retention period has passed.
     return emails.filter((e): e is Doc<"emails"> => e !== null);
-  },
-});
-
-// Helper to mark emails as sent. We'll use batch apis here to avoid lots of action->mutation calls.
-export const markEmailsSent = internalMutation({
-  args: {
-    emailIds: v.array(v.id("emails")),
-    resendIds: v.array(v.string()),
-  },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    await Promise.all(
-      args.emailIds.map((emailId, i) =>
-        ctx.db.patch(emailId, {
-          status: "sent",
-          resendId: args.resendIds[i],
-        })
-      )
-    );
   },
 });
 
