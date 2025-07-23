@@ -18,7 +18,8 @@ export const vStatus = v.union(
   v.literal("sent"),
   v.literal("delivered"),
   v.literal("delivery_delayed"),
-  v.literal("bounced")
+  v.literal("bounced"),
+  v.literal("failed")
 );
 export type Status = Infer<typeof vStatus>;
 
