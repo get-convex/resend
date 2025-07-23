@@ -292,6 +292,38 @@ export class Resend {
   }
 
   /**
+   * Gets a full email.
+   *
+   * @param ctx Any context that can run a query. You can get an email from
+   * an action, mutation, or query.
+   * @param emailId The id of the email to get. This was returned from {@link sendEmail}.
+   * @returns The email, or null if the email does not exist.
+   */
+  async get(
+    ctx: RunQueryCtx,
+    emailId: EmailId
+  ): Promise<{
+    from: string;
+    to: string;
+    subject: string;
+    replyTo: string[];
+    headers?: { name: string; value: string }[];
+    status: Status;
+    errorMessage?: string;
+    complained: boolean;
+    opened: boolean;
+    resendId?: string;
+    finalizedAt: number;
+    createdAt: number;
+    html?: string;
+    text?: string;
+  } | null> {
+    return await ctx.runQuery(this.component.lib.get, {
+      emailId,
+    });
+  }
+
+  /**
    * Handles a Resend event webhook.
    *
    * This will update emails in the component with the status of the email as detected by Resend,
