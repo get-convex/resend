@@ -176,16 +176,19 @@ export const getStatus = query({
   args: {
     emailId: v.id("emails"),
   },
-  returns: v.object({
-    status: vStatus,
-    errorMessage: v.union(v.string(), v.null()),
-    complained: v.boolean(),
-    opened: v.boolean(),
-  }),
+  returns: v.union(
+    v.object({
+      status: vStatus,
+      errorMessage: v.union(v.string(), v.null()),
+      complained: v.boolean(),
+      opened: v.boolean(),
+    }),
+    v.null()
+  ),
   handler: async (ctx, args) => {
     const email = await ctx.db.get(args.emailId);
     if (!email) {
-      throw new Error("Email not found");
+      return null;
     }
     return {
       status: email.status,

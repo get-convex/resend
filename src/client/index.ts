@@ -282,7 +282,10 @@ export class Resend {
    * @param emailId The id of the email to get the status of. This was returned from {@link sendEmail}.
    * @returns {@link EmailStatus} The status of the email.
    */
-  async status(ctx: RunQueryCtx, emailId: EmailId): Promise<EmailStatus> {
+  async status(
+    ctx: RunQueryCtx,
+    emailId: EmailId
+  ): Promise<EmailStatus | null> {
     return await ctx.runQuery(this.component.lib.getStatus, {
       emailId,
     });

@@ -110,7 +110,7 @@ export declare const components: {
             | "delivery_delayed"
             | "bounced"
             | "failed";
-        }
+        } | null
       >;
       handleEmailEvent: FunctionReference<
         "mutation",
