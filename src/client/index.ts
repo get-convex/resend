@@ -145,6 +145,8 @@ export type EmailStatus = {
 export type SendEmailOptions = {
   from: string;
   to: string;
+  cc?: string | string[];
+  bcc?: string | string[];
   subject: string;
   html?: string;
   text?: string;
@@ -247,7 +249,7 @@ export class Resend {
     replyTo?: string[],
     headers?: { name: string; value: string }[]
   ) {
-    const sendEmailArgs =
+    const sendEmailArgs: SendEmailOptions =
       typeof fromOrOptions === "string"
         ? {
             from: fromOrOptions,
@@ -258,13 +260,22 @@ export class Resend {
             replyTo,
             headers,
           }
-        : fromOrOptions;
+        : {
+            from: fromOrOptions.from,
+            to: fromOrOptions.to,
+
+            subject: fromOrOptions.subject,
+            html: fromOrOptions.html,
+            text: fromOrOptions.text,
+          };
 
     if (this.config.apiKey === "") throw new Error("API key is not set");
 
     const id = await ctx.runMutation(this.component.lib.sendEmail, {
       options: await configToRuntimeConfig(this.config, this.onEmailEvent),
       ...sendEmailArgs,
+      cc: toArray(sendEmailArgs.cc),
+      bcc: toArray(sendEmailArgs.bcc),
     });
 
     return id as EmailId;
@@ -466,3 +477,8 @@ export type UseApi<API> = Expand<{
       >
     : UseApi<API[mod]>;
 }>;
+
+function toArray<T>(value: T | T[] | undefined): T[] | undefined {
+  if (value === undefined) return undefined;
+  return Array.isArray(value) ? value : [value];
+}
