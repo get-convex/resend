@@ -92,7 +92,7 @@ export declare const components: {
             | "failed";
           subject: string;
           text?: string;
-          to: string;
+          to: Array<string>;
         } | null
       >;
       getStatus: FunctionReference<
@@ -139,7 +139,7 @@ export declare const components: {
           replyTo?: Array<string>;
           subject: string;
           text?: string;
-          to: string;
+          to: Array<string>;
         },
         string
       >;
