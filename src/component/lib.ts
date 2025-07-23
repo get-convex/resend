@@ -237,7 +237,7 @@ async function scheduleBatchRun(ctx: MutationCtx, options: RuntimeConfig) {
   const runId = await ctx.scheduler.runAfter(
     BASE_BATCH_DELAY,
     internal.lib.makeBatch,
-    { reloop: false }
+    { reloop: false, segment: getSegment(Date.now() + BASE_BATCH_DELAY) }
   );
 
   // Insert the new worker to reserve exactly one running.
@@ -248,13 +248,9 @@ async function scheduleBatchRun(ctx: MutationCtx, options: RuntimeConfig) {
 
 // A background job that grabs batches of emails and enqueues them to be sent by the workpool.
 export const makeBatch = internalMutation({
-  args: { reloop: v.boolean() },
+  args: { reloop: v.boolean(), segment: v.number() },
   returns: v.null(),
   handler: async (ctx, args) => {
-    // We scan earlier than two segments ago to avoid contention between new email insertions and batch creation.
-    const nowSegment = getSegment(Date.now());
-    const scanSegment = nowSegment - 2;
-
     // Get the API key for the worker.
     const lastOptions = await ctx.db.query("lastOptions").unique();
     if (!lastOptions) {
@@ -266,7 +262,8 @@ export const makeBatch = internalMutation({
     const emails = await ctx.db
       .query("emails")
       .withIndex("by_status_segment", (q) =>
-        q.eq("status", "waiting").lte("segment", scanSegment)
+        // We scan earlier than two segments ago to avoid contention between new email insertions and batch creation.
+        q.eq("status", "waiting").lte("segment", args.segment - 2)
       )
       .take(BATCH_SIZE);
 
@@ -304,7 +301,10 @@ export const makeBatch = internalMutation({
     );
 
     // Let's go around again until there are no more batches to make in this particular segment range.
-    await ctx.scheduler.runAfter(0, internal.lib.makeBatch, { reloop: true });
+    await ctx.scheduler.runAfter(0, internal.lib.makeBatch, {
+      reloop: true,
+      segment: args.segment,
+    });
   },
 });
 
@@ -327,8 +327,10 @@ async function reschedule(ctx: MutationCtx, emailsLeft: boolean) {
     }
     await ctx.db.delete(batchRun._id);
   } else {
+    const segment = getSegment(Date.now() + BASE_BATCH_DELAY);
     await ctx.scheduler.runAfter(BASE_BATCH_DELAY, internal.lib.makeBatch, {
       reloop: false,
+      segment,
     });
   }
 }
