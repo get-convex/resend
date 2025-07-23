@@ -43,12 +43,10 @@
   "exports": {
     "./package.json": "./package.json",
     ".": {
-      "@convex-dev/component-source": "./src/client/index.ts",
       "types": "./dist/client/index.d.ts",
       "default": "./dist/client/index.js"
     },
     "./convex.config": {
-      "@convex-dev/component-source": "./src/component/convex.config.ts",
       "types": "./dist/component/convex.config.d.ts",
       "default": "./dist/component/convex.config.js"
     }
