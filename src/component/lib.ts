@@ -204,16 +204,19 @@ export const get = query({
   args: {
     emailId: v.id("emails"),
   },
-  returns: v.object({
-    ...omit(schema.tables.emails.validator.fields, ["html", "text"]),
-    createdAt: v.number(),
-    html: v.optional(v.string()),
-    text: v.optional(v.string()),
-  }),
+  returns: v.union(
+    v.object({
+      ...omit(schema.tables.emails.validator.fields, ["html", "text"]),
+      createdAt: v.number(),
+      html: v.optional(v.string()),
+      text: v.optional(v.string()),
+    }),
+    v.null()
+  ),
   handler: async (ctx, args) => {
     const email = await ctx.db.get(args.emailId);
     if (!email) {
-      throw new Error("Email not found");
+      return null;
     }
     const html = email.html
       ? new TextDecoder().decode((await ctx.db.get(email.html))?.content)
