@@ -630,12 +630,6 @@ export const handleEmailEvent = mutation({
       console.info(`Email not found for resendId: ${resendId}, ignoring...`);
       return;
     }
-    const cleanedEvent: EmailEvent = {
-      type: event.type,
-      data: {
-        email_id: resendId,
-      },
-    };
     let changed = true;
     switch (event.type) {
       case "email.sent":
@@ -650,7 +644,7 @@ export const handleEmailEvent = mutation({
         email.status = "bounced";
         email.finalizedAt = Date.now();
         email.errorMessage = event.data.bounce?.message;
-        cleanedEvent.data.bounce = {
+        event.data.bounce = {
           message: event.data.bounce?.message,
         };
         break;
@@ -675,7 +669,7 @@ export const handleEmailEvent = mutation({
     if (changed) {
       await ctx.db.replace(email._id, email);
     }
-    await enqueueCallbackIfExists(ctx, email, cleanedEvent);
+    await enqueueCallbackIfExists(ctx, email, event);
   },
 });
 
