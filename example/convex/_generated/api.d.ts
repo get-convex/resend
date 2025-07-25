@@ -91,7 +91,7 @@ export declare const components: {
           subject: string;
           text?: string;
           to: string;
-        }
+        } | null
       >;
       getStatus: FunctionReference<
         "query",
