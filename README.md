@@ -220,3 +220,62 @@ export const cleanupResend = internalMutation({
 
 export default crons;
 ```
+
+### Using React Email
+
+You can use [React Email](https://react.email/) to generate your HTML for you from JSX.
+
+First install the [dependencies](https://react.email/docs/getting-started/manual-setup#2-install-dependencies):
+
+```bash
+npm install @react-email/components react react-dom react-email @react-email/render
+```
+
+Then create a new .tsx file in your Convex directory e.g. `/convex/emails.tsx`:
+
+```tsx
+// IMPORTANT: this is a Convex Node Action
+"use node";
+import { action } from "./_generated/server";
+import { render, pretty } from "@react-email/render";
+import { Button, Html } from "@react-email/components";
+import { components } from "./_generated/api";
+import { Resend } from "@convex-dev/resend";
+
+export const resend: Resend = new Resend(components.resend, {
+  testMode: false,
+});
+
+export const sendEmail = action({
+  args: {},
+  handler: async (ctx, args) => {
+    // 1. Generate the HTML from your JSX
+    // This can come from a custom component in your /emails/ directory
+    // if you would like to view your templates locally. For more info see:
+    // https://react.email/docs/getting-started/manual-setup#5-run-locally
+    const html = await pretty(
+      await render(
+        <Html>
+          <Button
+            href="https://example.com"
+            style={{ background: "#000", color: "#fff", padding: "12px 20px" }}
+          >
+            Click me
+          </Button>
+        </Html>
+      )
+    );
+
+    // 2. Send your email as usual using the component
+    await resend.sendEmail(ctx, {
+      from: "Me <test@mydomain.com>",
+      to: "delivered@resend.dev",
+      subject: "Hi there",
+      html,
+    });
+  },
+});
+```
+
+> [!WARNING]  
+> React Email requires some Node dependencies thus it must run in a Convex [Node action](https://docs.convex.dev/functions/actions#choosing-the-runtime-use-node) and not a regular Action.
