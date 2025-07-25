@@ -12,7 +12,12 @@ import { RateLimiter } from "@convex-dev/rate-limiter";
 import { api, components, internal } from "./_generated/api.js";
 import { internalMutation } from "./_generated/server.js";
 import { type Id, type Doc } from "./_generated/dataModel.js";
-import { type RuntimeConfig, vOptions, vStatus } from "./shared.js";
+import {
+  type RuntimeConfig,
+  vEmailEvent,
+  vOptions,
+  vStatus,
+} from "./shared.js";
 import type { FunctionHandle } from "convex/server";
 import type { EmailEvent, RunMutationCtx } from "./shared.js";
 import { isDeepEqual } from "remeda";
@@ -630,12 +635,6 @@ export const handleEmailEvent = mutation({
       console.info(`Email not found for resendId: ${resendId}, ignoring...`);
       return;
     }
-    const cleanedEvent: EmailEvent = {
-      type: event.type,
-      data: {
-        email_id: resendId,
-      },
-    };
     let changed = true;
     switch (event.type) {
       case "email.sent":
@@ -650,9 +649,6 @@ export const handleEmailEvent = mutation({
         email.status = "bounced";
         email.finalizedAt = Date.now();
         email.errorMessage = event.data.bounce?.message;
-        cleanedEvent.data.bounce = {
-          message: event.data.bounce?.message,
-        };
         break;
       case "email.delivery_delayed":
         email.status = "delivery_delayed";
@@ -675,7 +671,7 @@ export const handleEmailEvent = mutation({
     if (changed) {
       await ctx.db.replace(email._id, email);
     }
-    await enqueueCallbackIfExists(ctx, email, cleanedEvent);
+    await enqueueCallbackIfExists(ctx, email, parse(vEmailEvent, event));
   },
 });
 
