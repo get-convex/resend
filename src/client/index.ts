@@ -1,12 +1,17 @@
 import {
   createFunctionHandle,
+  internalMutationGeneric,
   type Expand,
   type FunctionReference,
   type FunctionVisibility,
 } from "convex/server";
 import { type GenericId, v, type VString } from "convex/values";
 import type { api } from "../component/_generated/api.js";
-import { type RuntimeConfig, type Status } from "../component/shared.js";
+import {
+  vEmailEvent,
+  type RuntimeConfig,
+  type Status,
+} from "../component/shared.js";
 import { Webhook } from "svix";
 import {
   type EmailEvent,
@@ -358,6 +363,27 @@ export class Resend {
 
     return new Response(null, {
       status: 201,
+    });
+  }
+
+  /**
+   * Defines a mutation to run after an email event occurs.
+   *
+   * @param handler The handler to run after an email event occurs.
+   * @returns The mutation to run after an email event occurs.
+   */
+  async defineOnEmailEvent(
+    handler: (
+      ctx: RunMutationCtx,
+      args: { id: EmailId; event: EmailEvent }
+    ) => Promise<void>
+  ) {
+    return internalMutationGeneric({
+      args: {
+        id: vEmailId,
+        event: vEmailEvent,
+      },
+      handler,
     });
   }
 }

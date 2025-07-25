@@ -127,15 +127,9 @@ export const resend: Resend = new Resend(components.resend, {
   onEmailEvent: internal.example.handleEmailEvent,
 });
 
-export const handleEmailEvent = internalMutation({
-  args: {
-    id: vEmailId,
-    event: vEmailEvent,
-  },
-  handler: async (ctx, args) => {
-    console.log("Got called back!", args.id, args.event);
-    // Probably do something with the event if you care about deliverability!
-  },
+export const handleEmailEvent = resend.defineOnEmailEvent(async (ctx, args) => {
+  console.log("Got called back!", args.id, args.event);
+  // Probably do something with the event if you care about deliverability!
 });
 
 /* ... existing email sending code ... */
@@ -277,5 +271,5 @@ export const sendEmail = action({
 });
 ```
 
-> [!WARNING]  
+> [!WARNING]
 > React Email requires some Node dependencies thus it must run in a Convex [Node action](https://docs.convex.dev/functions/actions#choosing-the-runtime-use-node) and not a regular Action.
