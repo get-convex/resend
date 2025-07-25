@@ -36,11 +36,23 @@ const FINALIZED_EMAIL_RETENTION_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 const FINALIZED_EPOCH = Number.MAX_SAFE_INTEGER;
 const ABANDONED_EMAIL_RETENTION_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
 
-const RESEND_TEST_EMAILS = new Set([
-  "delivered@resend.dev",
-  "bounced@resend.dev",
-  "complained@resend.dev",
-]);
+const RESEND_TEST_EMAILS = ["delivered", "bounced", "complained"];
+
+function isTestEmail(email: string) {
+  const [prefix, domain] = email.split("@");
+  if (domain !== "resend.dev") {
+    return false;
+  }
+  for (const testEmail of RESEND_TEST_EMAILS) {
+    if (prefix === testEmail) {
+      return true;
+    }
+    if (prefix.startsWith(testEmail + "+")) {
+      return true;
+    }
+  }
+  return false;
+}
 
 const PERMANENT_ERROR_CODES = new Set([
   400, 401 /* 402 not included - unclear spec */, 403, 404, 405, 406, 407, 408,
@@ -101,10 +113,14 @@ export const sendEmail = mutation({
   returns: v.id("emails"),
   handler: async (ctx, args) => {
     // We only allow test emails in test mode.
-    if (args.options.testMode && !RESEND_TEST_EMAILS.has(args.to)) {
-      throw new Error(
-        `Test mode is enabled, but email address is not a valid resend test address. Did you want to set testMode: false in your ResendOptions?`
-      );
+    if (args.options.testMode) {
+      for (const to of [...args.to, ...(args.cc ?? []), ...(args.bcc ?? [])]) {
+        if (!isTestEmail(to)) {
+          throw new Error(
+            `Test mode is enabled, but email address is not a valid resend test address. Did you want to set testMode: false in your ResendOptions?`
+          );
+        }
+      }
     }
 
     // We require either html or text to be provided. No body = no bueno.
