@@ -68,6 +68,8 @@ export declare const components: {
         "internal",
         { emailId: string },
         {
+          bcc?: Array<string>;
+          cc?: Array<string>;
           complained: boolean;
           createdAt: number;
           errorMessage?: string;
@@ -90,7 +92,7 @@ export declare const components: {
             | "failed";
           subject: string;
           text?: string;
-          to: string;
+          to: Array<string>;
         } | null
       >;
       getStatus: FunctionReference<
@@ -122,6 +124,8 @@ export declare const components: {
         "mutation",
         "internal",
         {
+          bcc?: Array<string>;
+          cc?: Array<string>;
           from: string;
           headers?: Array<{ name: string; value: string }>;
           html?: string;
@@ -135,7 +139,7 @@ export declare const components: {
           replyTo?: Array<string>;
           subject: string;
           text?: string;
-          to: string;
+          to: Array<string>;
         },
         string
       >;

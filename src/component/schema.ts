@@ -17,7 +17,9 @@ export default defineSchema({
   }),
   emails: defineTable({
     from: v.string(),
-    to: v.string(),
+    to: v.union(v.array(v.string()), v.string()),
+    cc: v.optional(v.array(v.string())),
+    bcc: v.optional(v.array(v.string())),
     subject: v.string(),
     replyTo: v.array(v.string()),
     html: v.optional(v.id("content")),

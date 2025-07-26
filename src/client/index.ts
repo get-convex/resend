@@ -138,7 +138,9 @@ export type EmailStatus = {
 
 export type SendEmailOptions = {
   from: string;
-  to: string;
+  to: string | string[];
+  cc?: string | string[];
+  bcc?: string | string[];
   subject: string;
   html?: string;
   text?: string;
@@ -241,7 +243,7 @@ export class Resend {
     replyTo?: string[],
     headers?: { name: string; value: string }[]
   ) {
-    const sendEmailArgs =
+    const sendEmailArgs: SendEmailOptions =
       typeof fromOrOptions === "string"
         ? {
             from: fromOrOptions,
@@ -259,6 +261,12 @@ export class Resend {
     const id = await ctx.runMutation(this.component.lib.sendEmail, {
       options: await configToRuntimeConfig(this.config, this.onEmailEvent),
       ...sendEmailArgs,
+      to:
+        typeof sendEmailArgs.to === "string"
+          ? [sendEmailArgs.to]
+          : sendEmailArgs.to,
+      cc: toArray(sendEmailArgs.cc),
+      bcc: toArray(sendEmailArgs.bcc),
     });
 
     return id as EmailId;
@@ -309,7 +317,7 @@ export class Resend {
     emailId: EmailId
   ): Promise<{
     from: string;
-    to: string;
+    to: string[];
     subject: string;
     replyTo: string[];
     headers?: { name: string; value: string }[];
@@ -416,3 +424,8 @@ export type UseApi<API> = Expand<{
       >
     : UseApi<API[mod]>;
 }>;
+
+function toArray<T>(value: T | T[] | undefined): T[] | undefined {
+  if (value === undefined) return undefined;
+  return Array.isArray(value) ? value : [value];
+}
