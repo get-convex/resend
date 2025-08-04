@@ -119,7 +119,6 @@ Update your `sendEmails.ts` to look something like this:
 
 ```ts
 import { components, internal } from "./_generated/api";
-import { Resend } from "@convex-dev/resend";
 import { internalMutation } from "./_generated/server";
 import { vEmailId, vEmailEvent, Resend } from "@convex-dev/resend";
 
