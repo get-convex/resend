@@ -1,7 +1,6 @@
 /// <reference types="vite/client" />
 import { test } from "vitest";
 import type {
-  EmailEvent,
   EventEventOfType,
   EventEventTypes,
   RuntimeConfig,
@@ -21,9 +20,163 @@ export type Tester = ReturnType<typeof setupTest>;
 
 test("setup", () => {});
 
-export const createTestEventOfType = <
-  T extends EventEventTypes,
->(): EventEventOfType<T> => {};
+// Exhaustive helper function to ensure all event types are handled
+const assertExhaustive = (value: never): never => {
+  throw new Error(`Unhandled event type: ${value as string}`);
+};
+
+/**
+ * Creates test events for any given email event type with optional overrides.
+ *
+ * @example
+ * // Basic usage with defaults
+ * const sentEvent = createTestEventOfType("email.sent");
+ *
+ * @example
+ * // Override top-level properties
+ * const customEvent = createTestEventOfType("email.delivered", {
+ *   created_at: "2024-12-01T00:00:00Z"
+ * });
+ *
+ * @example
+ * // Override data properties
+ * const customDataEvent = createTestEventOfType("email.bounced", {
+ *   data: {
+ *     from: "custom@sender.com",
+ *     bounce: {
+ *       message: "Custom bounce message",
+ *       subType: "recipient-issue",
+ *       type: "soft"
+ *     }
+ *   }
+ * });
+ */
+
+export const createTestEventOfType = <T extends EventEventTypes>(
+  type: T,
+  overrides?: Partial<EventEventOfType<T>>
+): EventEventOfType<T> => {
+  const baseData = {
+    email_id: "test-resend-id-123",
+    created_at: "2024-01-01T00:00:00Z",
+    from: "test@example.com",
+    to: "recipient@example.com",
+    subject: "Test Email",
+    broadcast_id: "test-broadcast-123",
+    cc: ["cc@example.com"],
+    bcc: ["bcc@example.com"],
+    reply_to: ["reply@example.com"],
+    headers: [{ name: "X-Test-Header", value: "test-value" }],
+    tags: [
+      { name: "environment", value: "test" },
+      { name: "campaign", value: "test-campaign" },
+    ],
+  };
+
+  const baseEvent = {
+    type,
+    created_at: "2024-01-01T00:00:00Z",
+  };
+
+  // Helper to merge overrides with base event
+  const applyOverrides = (event: EventEventOfType<T>): EventEventOfType<T> => {
+    if (!overrides) return event;
+
+    return {
+      ...event,
+      ...overrides,
+      data: overrides.data ? { ...event.data, ...overrides.data } : event.data,
+    } as EventEventOfType<T>;
+  };
+
+  if (type === "email.sent")
+    return applyOverrides({
+      ...baseEvent,
+      type: "email.sent",
+      data: baseData,
+    } as EventEventOfType<T>);
+
+  if (type === "email.delivered")
+    return applyOverrides({
+      ...baseEvent,
+      type: "email.delivered",
+      data: baseData,
+    } as EventEventOfType<T>);
+
+  if (type === "email.delivery_delayed")
+    return applyOverrides({
+      ...baseEvent,
+      type: "email.delivery_delayed",
+      data: baseData,
+    } as EventEventOfType<T>);
+
+  if (type === "email.complained")
+    return applyOverrides({
+      ...baseEvent,
+      type: "email.complained",
+      data: baseData,
+    } as EventEventOfType<T>);
+
+  if (type === "email.bounced")
+    return applyOverrides({
+      ...baseEvent,
+      type: "email.bounced",
+      data: {
+        ...baseData,
+        bounce: {
+          message: "The email bounced due to invalid recipient",
+          subType: "general",
+          type: "hard",
+        },
+      },
+    } as EventEventOfType<T>);
+
+  if (type === "email.opened")
+    return applyOverrides({
+      ...baseEvent,
+      type: "email.opened",
+      data: {
+        ...baseData,
+        open: {
+          ipAddress: "192.168.1.100",
+          timestamp: "2024-01-01T00:05:00Z",
+          userAgent:
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        },
+      },
+    } as EventEventOfType<T>);
+
+  if (type === "email.clicked")
+    return applyOverrides({
+      ...baseEvent,
+      type: "email.clicked",
+      data: {
+        ...baseData,
+        click: {
+          ipAddress: "192.168.1.100",
+          link: "https://example.com/test-link",
+          timestamp: "2024-01-01T00:10:00Z",
+          userAgent:
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        },
+      },
+    } as EventEventOfType<T>);
+
+  if (type === "email.failed")
+    return applyOverrides({
+      ...baseEvent,
+      type: "email.failed",
+      data: {
+        ...baseData,
+        failed: {
+          reason: "SMTP server rejected the email",
+        },
+      },
+    } as EventEventOfType<T>);
+
+  // This ensures exhaustive checking at compile time
+  return assertExhaustive(type);
+};
 
 export const createTestDeliveredEvent =
   (): EventEventOfType<"email.delivered"> => ({
