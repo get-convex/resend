@@ -1,32 +1,30 @@
 import {
   createFunctionHandle,
-  GenericDataModel,
-  GenericMutationCtx,
   internalMutationGeneric,
   type Expand,
   type FunctionReference,
   type FunctionVisibility,
+  type GenericDataModel,
+  type GenericMutationCtx,
 } from "convex/server";
-import { type GenericId, v, type VString } from "convex/values";
+import { v, type GenericId, type VString } from "convex/values";
+import { Webhook } from "svix";
 import type { api } from "../component/_generated/api.js";
 import {
   vEmailEvent,
-  type RuntimeConfig,
-  type Status,
-} from "../component/shared.js";
-import { Webhook } from "svix";
-import {
   type EmailEvent,
   type RunMutationCtx,
   type RunQueryCtx,
+  type RuntimeConfig,
+  type Status,
 } from "../component/shared.js";
 
 export type ResendComponent = UseApi<typeof api>;
 
 export type EmailId = string & { __isEmailId: true };
 export const vEmailId = v.string() as VString<EmailId>;
-export { vEmailEvent, vStatus, vOptions } from "../component/shared.js";
-export type { Status, EmailEvent } from "../component/shared.js";
+export { vEmailEvent, vOptions, vStatus } from "../component/shared.js";
+export type { EmailEvent, Status } from "../component/shared.js";
 export const vOnEmailEventArgs = v.object({
   id: vEmailId,
   event: vEmailEvent,
