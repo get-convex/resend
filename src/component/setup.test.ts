@@ -1,6 +1,11 @@
 /// <reference types="vite/client" />
 import { test } from "vitest";
-import type { EmailEvent, EventEventOfType, RuntimeConfig } from "./shared.js";
+import type {
+  EmailEvent,
+  EventEventOfType,
+  EventEventTypes,
+  RuntimeConfig,
+} from "./shared.js";
 import { convexTest } from "convex-test";
 import schema from "./schema.js";
 import type { Doc } from "./_generated/dataModel.js";
@@ -15,6 +20,10 @@ export const setupTest = () => {
 export type Tester = ReturnType<typeof setupTest>;
 
 test("setup", () => {});
+
+export const createTestEventOfType = <
+  T extends EventEventTypes,
+>(): EventEventOfType<T> => {};
 
 export const createTestDeliveredEvent =
   (): EventEventOfType<"email.delivered"> => ({
@@ -52,7 +61,13 @@ export const setupTestLastOptions = (
 export const insertTestEmail = (
   t: Tester,
   overrides: Omit<Doc<"emails">, "_id" | "_creationTime">
-) => t.run((ctx) => ctx.db.insert("emails", overrides));
+) =>
+  t.run(async (ctx) => {
+    const id = await ctx.db.insert("emails", overrides);
+    const email = await ctx.db.get(id);
+    if (!email) throw new Error("Email not found");
+    return email;
+  });
 
 export const insertTestSentEmail = (
   t: Tester,
