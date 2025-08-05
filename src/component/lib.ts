@@ -641,6 +641,7 @@ export const handleEmailEvent = mutation({
         `Email not found for resendId: ${event.data.email_id}, ignoring...`
       );
 
+    // Returns the changed email or null if not changed
     const changed = iife((): Doc<"emails"> | null => {
       // NOOP -- we do this automatically when we send the email.
       if (event.type == "email.sent") return null;
