@@ -21,33 +21,6 @@ export type Tester = ReturnType<typeof setupTest>;
 
 test("setup", () => {});
 
-/**
- * Creates test events for any given email event type with optional overrides.
- *
- * @example
- * // Basic usage with defaults
- * const sentEvent = createTestEventOfType("email.sent");
- *
- * @example
- * // Override top-level properties
- * const customEvent = createTestEventOfType("email.delivered", {
- *   created_at: "2024-12-01T00:00:00Z"
- * });
- *
- * @example
- * // Override data properties
- * const customDataEvent = createTestEventOfType("email.bounced", {
- *   data: {
- *     from: "custom@sender.com",
- *     bounce: {
- *       message: "Custom bounce message",
- *       subType: "recipient-issue",
- *       type: "soft"
- *     }
- *   }
- * });
- */
-
 export const createTestEventOfType = <T extends EventEventTypes>(
   type: T,
   overrides?: Partial<EventEventOfType<T>>
@@ -174,7 +147,6 @@ export const createTestEventOfType = <T extends EventEventTypes>(
       },
     });
 
-  // This ensures exhaustive checking at compile time
   return assertExhaustive(type);
 };
 
