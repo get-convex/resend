@@ -4,7 +4,7 @@ import {
   internalQuery,
 } from "./_generated/server";
 import { components, internal } from "./_generated/api";
-import { vEmailId, vEmailEvent, Resend } from "@convex-dev/resend";
+import { Resend, vOnEmailEventArgs } from "@convex-dev/resend";
 import { v } from "convex/values";
 
 export const resend: Resend = new Resend(components.resend, {
@@ -94,10 +94,7 @@ export const isEmpty = internalQuery({
 });
 
 export const handleEmailEvent = internalMutation({
-  args: {
-    id: vEmailId,
-    event: vEmailEvent,
-  },
+  args: vOnEmailEventArgs,
   handler: async (ctx, args) => {
     console.log("Got called back!", args.id, args.event);
     const testEmail = await ctx.db

@@ -1,5 +1,7 @@
 import {
   createFunctionHandle,
+  GenericDataModel,
+  GenericMutationCtx,
   internalMutationGeneric,
   type Expand,
   type FunctionReference,
@@ -23,6 +25,10 @@ export type EmailId = string & { __isEmailId: true };
 export const vEmailId = v.string() as VString<EmailId>;
 export { vEmailEvent, vStatus, vOptions } from "../component/shared.js";
 export type { Status, EmailEvent } from "../component/shared.js";
+export const vOnEmailEventArgs = v.object({
+  id: vEmailId,
+  event: vEmailEvent,
+});
 
 type Config = RuntimeConfig & {
   webhookSecret: string;
@@ -369,12 +375,16 @@ export class Resend {
   /**
    * Defines a mutation to run after an email event occurs.
    *
+   * It is probably simpler to just define your mutation as a `internalMutation`
+   * and pass the `vOnEmailEventArgs` as the args than use this.
+   * See the example in the README for more.
+   *
    * @param handler The handler to run after an email event occurs.
    * @returns The mutation to run after an email event occurs.
    */
-  async defineOnEmailEvent(
+  defineOnEmailEvent<DataModel extends GenericDataModel>(
     handler: (
-      ctx: RunMutationCtx,
+      ctx: GenericMutationCtx<DataModel>,
       args: { id: EmailId; event: EmailEvent }
     ) => Promise<void>
   ) {
