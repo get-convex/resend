@@ -24,7 +24,7 @@ import { isDeepEqual } from "remeda";
 import schema from "./schema.js";
 import { omit } from "convex-helpers";
 import { parse } from "convex-helpers/validators";
-import { assertExhaustive, iife } from "./utils.js";
+import { assertExhaustive, attemptToParse, iife } from "./utils.js";
 
 // Move some of these to options? TODO
 const SEGMENT_MS = 125;
@@ -628,8 +628,13 @@ export const handleEmailEvent = mutation({
   handler: async (ctx, args) => {
     // Event can be anything, so we need to parse it.
     // this will also strip out anything that shouldnt be there.
-    const event = attemptToParseEvent(args.event);
-    if (typeof event === "string") return console.warn(event);
+    const result = attemptToParse(vEmailEvent, args.event);
+    if (result.kind === "error")
+      return console.warn(
+        `Invalid email event received. You might want to to exclude this event from your Resend webhook settings in the Resend dashboard. ${result.error}.`
+      );
+
+    const event = result.data;
 
     const email = await ctx.db
       .query("emails")
@@ -693,14 +698,6 @@ export const handleEmailEvent = mutation({
     await enqueueCallbackIfExists(ctx, changed ?? email, event);
   },
 });
-
-const attemptToParseEvent = (event: unknown): EmailEvent | string => {
-  try {
-    return parse(vEmailEvent, event);
-  } catch (error) {
-    return `Invalid email event received: ${error instanceof Error ? error.message : String(error)}`;
-  }
-};
 
 async function enqueueCallbackIfExists(
   ctx: MutationCtx,
