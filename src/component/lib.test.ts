@@ -25,7 +25,7 @@ describe("handleEmailEvent", () => {
   const exec = (_event = event) =>
     t.mutation(api.lib.handleEmailEvent, { event: _event });
 
-  it("works", async () => {
+  it("updates email for delivered event", async () => {
     await exec();
 
     const updatedEmail = await t.run(async (ctx) => ctx.db.get(sentEmailId));

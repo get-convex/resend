@@ -631,10 +631,12 @@ export const handleEmailEvent = mutation({
       .query("emails")
       .withIndex("by_resendId", (q) => q.eq("resendId", resendId))
       .unique();
+
     if (!email) {
       console.info(`Email not found for resendId: ${resendId}, ignoring...`);
       return;
     }
+
     let changed = true;
     switch (event.type) {
       case "email.sent":
