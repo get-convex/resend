@@ -24,6 +24,7 @@ import { isDeepEqual } from "remeda";
 import schema from "./schema.js";
 import { omit } from "convex-helpers";
 import { parse } from "convex-helpers/validators";
+import { assertExhaustive, iife } from "./utils.js";
 
 // Move some of these to options? TODO
 const SEGMENT_MS = 125;
@@ -625,57 +626,80 @@ export const handleEmailEvent = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const event = args.event as EmailEvent;
-    const resendId = event.data.email_id;
+    // Event can be anything, so we need to parse it.
+    // this will also strip out anything that shouldnt be there.
+    const event = attemptToParseEvent(args.event);
+    if (typeof event === "string") return console.warn(event);
+
     const email = await ctx.db
       .query("emails")
-      .withIndex("by_resendId", (q) => q.eq("resendId", resendId))
+      .withIndex("by_resendId", (q) => q.eq("resendId", event.data.email_id))
       .unique();
 
-    if (!email) {
-      console.info(`Email not found for resendId: ${resendId}, ignoring...`);
-      return;
-    }
+    if (!email)
+      return console.info(
+        `Email not found for resendId: ${event.data.email_id}, ignoring...`
+      );
 
-    let changed = true;
-    switch (event.type) {
-      case "email.sent":
-        // NOOP -- we do this automatically when we send the email.
-        changed = false;
-        break;
-      case "email.delivered":
-        email.status = "delivered";
-        email.finalizedAt = Date.now();
-        break;
-      case "email.bounced":
-        email.status = "bounced";
-        email.finalizedAt = Date.now();
-        email.errorMessage = event.data.bounce?.message;
-        break;
-      case "email.delivery_delayed":
-        email.status = "delivery_delayed";
-        break;
-      case "email.complained":
-        email.complained = true;
-        break;
-      case "email.opened":
-        email.opened = true;
-        break;
-      case "email.clicked":
-        changed = false;
-        // One email can have multiple clicks, so we don't track them for now.
-        break;
-      default:
-        // Ignore other events
-        return;
-    }
+    const changed = iife((): Doc<"emails"> | null => {
+      // NOOP -- we do this automatically when we send the email.
+      if (event.type == "email.sent") return null;
 
-    if (changed) {
-      await ctx.db.replace(email._id, email);
-    }
-    await enqueueCallbackIfExists(ctx, email, parse(vEmailEvent, event));
+      // These we dont do anything with
+      if (event.type == "email.clicked") return null;
+      if (event.type == "email.failed") return null;
+
+      if (event.type == "email.delivered")
+        return {
+          ...email,
+          status: "delivered",
+          finalizedAt: Date.now(),
+        };
+
+      if (event.type == "email.bounced")
+        return {
+          ...email,
+          status: "bounced",
+          finalizedAt: Date.now(),
+          errorMessage: event.data.bounce?.message,
+        };
+
+      if (event.type == "email.delivery_delayed")
+        return {
+          ...email,
+          status: "delivery_delayed",
+        };
+
+      if (event.type == "email.complained")
+        return {
+          ...email,
+          complained: true,
+        };
+
+      if (event.type == "email.opened")
+        return {
+          ...email,
+          opened: true,
+        };
+
+      assertExhaustive(event);
+
+      return null;
+    });
+
+    if (changed) await ctx.db.replace(email._id, changed);
+
+    await enqueueCallbackIfExists(ctx, changed ?? email, event);
   },
 });
+
+const attemptToParseEvent = (event: unknown): EmailEvent | string => {
+  try {
+    return parse(vEmailEvent, event);
+  } catch (error) {
+    return `Invalid email event received: ${error instanceof Error ? error.message : String(error)}`;
+  }
+};
 
 async function enqueueCallbackIfExists(
   ctx: MutationCtx,
