@@ -134,6 +134,10 @@ export const vEmailEvent = v.union(
 );
 
 export type EmailEvent = Infer<typeof vEmailEvent>;
+export type EventEventOfType<T extends EmailEvent["type"]> = Extract<
+  EmailEvent,
+  { type: T }
+>;
 
 /* Type utils follow */
 
