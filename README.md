@@ -126,12 +126,14 @@ export const resend: Resend = new Resend(components.resend, {
   onEmailEvent: internal.example.handleEmailEvent,
 });
 
-export const handleEmailEvent = resend.defineOnEmailEvent(async (ctx, args) => {
-  console.log("Got called back!", args.id, args.event);
-  // Probably do something with the event if you care about deliverability!
+export const handleEmailEvent = internalMutation({
+  args: vOnEmailEventArgs,
+  handler: async (ctx, args) => {
+    // Handle however you want
+    // args provides { id: EmailId; event: EmailEvent; }
+    // see /example/example.ts
+  },
 });
-
-/* ... existing email sending code ... */
 ```
 
 Check out the `example/` project in this repo for a full demo.
