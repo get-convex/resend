@@ -20,7 +20,7 @@ function setupTest() {
 
 type ConvexTest = ReturnType<typeof setupTest>["t"];
 
-describe("TableAggregate", () => {
+describe("Resend", () => {
   describe("status", () => {
     let t: ConvexTest;
     let resend: Resend;
