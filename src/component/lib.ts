@@ -629,10 +629,12 @@ export const handleEmailEvent = mutation({
     // Event can be anything, so we need to parse it.
     // this will also strip out anything that shouldnt be there.
     const result = attemptToParse(vEmailEvent, args.event);
-    if (result.kind === "error")
-      return console.warn(
+    if (result.kind === "error") {
+      console.warn(
         `Invalid email event received. You might want to to exclude this event from your Resend webhook settings in the Resend dashboard. ${result.error}.`
       );
+      return;
+    }
 
     const event = result.data;
 
@@ -641,10 +643,12 @@ export const handleEmailEvent = mutation({
       .withIndex("by_resendId", (q) => q.eq("resendId", event.data.email_id))
       .unique();
 
-    if (!email)
-      return console.info(
+    if (!email) {
+      console.info(
         `Email not found for resendId: ${event.data.email_id}, ignoring...`
       );
+      return;
+    }
 
     // Returns the changed email or null if not changed
     const changed = iife((): Doc<"emails"> | null => {

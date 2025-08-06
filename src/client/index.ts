@@ -19,7 +19,7 @@ import {
   type RunQueryCtx,
 } from "../component/shared.js";
 
-export type UsedAPI = UseApi<typeof api>;
+export type ResendComponent = UseApi<typeof api>;
 
 export type EmailId = string & { __isEmailId: true };
 export const vEmailId = v.string() as VString<EmailId>;
