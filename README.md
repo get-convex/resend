@@ -274,3 +274,59 @@ export const sendEmail = action({
 
 > [!WARNING]
 > React Email requires some Node dependencies thus it must run in a Convex [Node action](https://docs.convex.dev/functions/actions#choosing-the-runtime-use-node) and not a regular Action.
+
+### Sending emails manually, e.g. for attachments
+
+If you need something that the component doesn't provide (it is currently
+limited by what is supported by the batch API in Resend), you can send emails
+manually. This is the preferred approach, because you have fine-grained control
+over the email sending process, and can track its progress manually using the
+component's public APIs.
+
+```ts
+import { components, internal } from "./_generated/api";
+import { internalMutation } from "./_generated/server";
+import { Resend as ResendComponent } from "@convex-dev/resend";
+import { Resend } from "resend";
+
+const resend = new Resend("re_xxxxxxxxx");
+
+export const resendResendComponent = new ResendComponent(components.resend, {});
+
+await resend.emails.send({
+  from: "Acme <onboarding@resend.dev>",
+  to: ["delivered@resend.dev"],
+  subject: "hello world",
+  html: "<p>it works!</p>",
+});
+
+export const sendManualEmail = internalMutation({
+  args: {},
+  handler: async (ctx, args) => {
+    const from = "Acme <onboarding@resend.dev>";
+    const to = ["delivered@resend.dev"];
+    const subject = "hello world";
+    const html = "<p>it works!</p>";
+
+    const emailId = await resend.sendEmailManually(
+      ctx,
+      { from, to, subject },
+      async (emailId) => {
+        const data = await resend.emails.send({
+          from,
+          to,
+          subject,
+          html,
+          headers: [
+            {
+              name: "Idempotency-Key",
+              value: emailId,
+            },
+          ],
+        });
+        return data.id;
+      }
+    );
+  },
+});
+```

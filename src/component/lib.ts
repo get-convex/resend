@@ -155,6 +155,61 @@ export const sendEmail = mutation({
   },
 });
 
+export const createManualEmail = mutation({
+  args: {
+    from: v.string(),
+    to: v.string(),
+    subject: v.string(),
+    replyTo: v.optional(v.array(v.string())),
+    headers: v.optional(
+      v.array(
+        v.object({
+          name: v.string(),
+          value: v.string(),
+        })
+      )
+    ),
+  },
+  returns: v.id("emails"),
+  handler: async (ctx, args) => {
+    const emailId = await ctx.db.insert("emails", {
+      from: args.from,
+      to: args.to,
+      subject: args.subject,
+      headers: args.headers,
+      segment: Infinity,
+      status: "queued",
+      complained: false,
+      opened: false,
+      replyTo: args.replyTo ?? [],
+      finalizedAt: FINALIZED_EPOCH,
+    });
+    return emailId;
+  },
+});
+
+export const updateManualEmail = mutation({
+  args: {
+    emailId: v.id("emails"),
+    status: vStatus,
+    resendId: v.optional(v.string()),
+    errorMessage: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const finalizedAt =
+      args.status === "failed" || args.status === "cancelled"
+        ? Date.now()
+        : undefined;
+    await ctx.db.patch(args.emailId, {
+      status: args.status,
+      resendId: args.resendId,
+      errorMessage: args.errorMessage,
+      ...(finalizedAt ? { finalizedAt } : {}),
+    });
+  },
+});
+
 // Cancel an email that has not been sent yet. The worker will ignore it
 // within whatever batch it is in.
 export const cancelEmail = mutation({

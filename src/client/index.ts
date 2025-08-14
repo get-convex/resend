@@ -270,6 +270,46 @@ export class Resend {
     return id as EmailId;
   }
 
+  async sendEmailManually(
+    ctx: RunMutationCtx,
+    options: Omit<SendEmailOptions, "html" | "text">,
+    sendCallback: (emailId: EmailId) => Promise<string>
+  ): Promise<EmailId> {
+    const emailId = (await ctx.runMutation(
+      this.component.lib.createManualEmail,
+      {
+        from: options.from,
+        to: options.to,
+        subject: options.subject,
+        replyTo: options.replyTo,
+        headers: options.headers,
+      }
+    )) as EmailId;
+    try {
+      const resendId = await sendCallback(emailId);
+      await ctx.runMutation(this.component.lib.updateManualEmail, {
+        emailId,
+        status: "sent",
+        resendId,
+      });
+    } catch (error) {
+      await ctx.runMutation(this.component.lib.updateManualEmail, {
+        emailId,
+        status: "failed",
+        errorMessage: error instanceof Error ? error.message : String(error),
+        resendId:
+          typeof error === "object" && error !== null && "resendId" in error
+            ? typeof error.resendId === "string"
+              ? error.resendId
+              : undefined
+            : undefined,
+      });
+      throw error;
+    }
+
+    return emailId as EmailId;
+  }
+
   /**
    * Cancels an email.
    *
