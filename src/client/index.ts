@@ -270,6 +270,69 @@ export class Resend {
     return id as EmailId;
   }
 
+
+  /**
+   * Sends an email directly to Resend API without batching
+   *
+   * This method bypasses the batch processing system and sends the email immediately
+   * to the Resend API. The email will still be tracked and webhook events will be
+   * processed normally.
+   *
+   * @param ctx Any context that can run a mutation. You can send an email from
+   * either a mutation or an action.
+   * @param options The {@link SendEmailOptions} object containing all email parameters.
+   * @returns The id of the email within the component.
+   */
+  async sendEmailDirect(
+    ctx: RunMutationCtx,
+    options: SendEmailOptions
+  ): Promise<EmailId>;
+  /**
+   * Sends an email directly to Resend API without batching by providing individual arguments
+   */
+  async sendEmailDirect(
+    ctx: RunMutationCtx,
+    from: string,
+    to: string,
+    subject: string,
+    html?: string,
+    text?: string,
+    replyTo?: string[],
+    headers?: { name: string; value: string }[]
+  ): Promise<EmailId>;
+  async sendEmailDirect(
+    ctx: RunMutationCtx,
+    fromOrOptions: string | SendEmailOptions,
+    to?: string,
+    subject?: string,
+    html?: string,
+    text?: string,
+    replyTo?: string[],
+    headers?: { name: string; value: string }[]
+  ) {
+    const sendEmailArgs =
+      typeof fromOrOptions === "string"
+        ? {
+            from: fromOrOptions,
+            to: to!,
+            subject: subject!,
+            html,
+            text,
+            replyTo,
+            headers,
+          }
+        : fromOrOptions;
+
+    if (this.config.apiKey === "") throw new Error("API key is not set");
+
+    const id = await ctx.runMutation(this.component.lib.sendEmailDirect, {
+      options: await configToRuntimeConfig(this.config, this.onEmailEvent),
+      ...sendEmailArgs,
+    });
+
+    return id as EmailId;
+  }
+
   /**
    * Cancels an email.
    *

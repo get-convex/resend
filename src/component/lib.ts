@@ -795,3 +795,178 @@ export const cleanupAbandonedEmails = mutation({
     }
   },
 });
+
+export const sendEmailDirect = mutation({
+  args: {
+    options: vOptions,
+    from: v.string(),
+    to: v.string(),
+    subject: v.string(),
+    html: v.optional(v.string()),
+    text: v.optional(v.string()),
+    replyTo: v.optional(v.array(v.string())),
+    headers: v.optional(
+      v.array(
+        v.object({
+          name: v.string(),
+          value: v.string(),
+        })
+      )
+    ),
+  },
+  returns: v.id("emails"),
+  handler: async (ctx, args) => {
+    if (args.options.testMode && !RESEND_TEST_EMAILS.has(args.to)) {
+      throw new Error(
+        `Test mode is enabled, but email address is not a valid resend test address. Did you want to set testMode: false in your ResendOptions?`
+      );
+    }
+
+    if (args.html === undefined && args.text === undefined) {
+      throw new Error("Either html or text must be provided");
+    }
+
+    let htmlContentId: Id<"content"> | undefined;
+    if (args.html !== undefined) {
+      const contentId = await ctx.db.insert("content", {
+        content: new TextEncoder().encode(args.html).buffer,
+        mimeType: "text/html",
+      });
+      htmlContentId = contentId;
+    }
+
+    let textContentId: Id<"content"> | undefined;
+    if (args.text !== undefined) {
+      const contentId = await ctx.db.insert("content", {
+        content: new TextEncoder().encode(args.text).buffer,
+        mimeType: "text/plain",
+      });
+      textContentId = contentId;
+    }
+
+    const segment = getSegment(Date.now());
+
+    const emailId = await ctx.db.insert("emails", {
+      from: args.from,
+      to: args.to,
+      subject: args.subject,
+      html: htmlContentId,
+      text: textContentId,
+      headers: args.headers,
+      segment,
+      status: "queued",
+      complained: false,
+      opened: false,
+      replyTo: args.replyTo ?? [],
+      finalizedAt: FINALIZED_EPOCH,
+    });
+
+    const lastOptionsDoc = await ctx.db.query("lastOptions").unique();
+    if (lastOptionsDoc) {
+      await ctx.db.patch(lastOptionsDoc._id, { options: args.options });
+    } else {
+      await ctx.db.insert("lastOptions", { options: args.options });
+    }
+
+    await ctx.scheduler.runAfter(0, internal.lib.callResendAPIDirectly, {
+      emailId,
+      apiKey: args.options.apiKey,
+    });
+
+    return emailId;
+  },
+});
+
+export const callResendAPIDirectly = internalAction({
+  args: {
+    emailId: v.id("emails"),
+    apiKey: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const emails = await ctx.runQuery(internal.lib.getEmailsByIds, {
+      emailIds: [args.emailId],
+    });
+    
+    if (emails.length === 0 || emails[0].status !== "queued") {
+      console.log(`Email ${args.emailId} not found or not queued, skipping direct send`);
+      return;
+    }
+
+    const emailData = emails[0];
+
+    const contentIds = [emailData.html, emailData.text].filter(
+      (id): id is Id<"content"> => id !== undefined
+    );
+    const contentMap = await getAllContent(ctx, contentIds);
+
+    const goTime = await getGoTime(ctx);
+    const delay = goTime - Date.now();
+    if (delay > 0) {
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+
+    const payload = {
+      from: emailData.from,
+      to: [emailData.to],
+      subject: emailData.subject,
+      html: emailData.html ? contentMap.get(emailData.html) : undefined,
+      text: emailData.text ? contentMap.get(emailData.text) : undefined,
+      reply_to: emailData.replyTo && emailData.replyTo.length ? emailData.replyTo : undefined,
+      headers: emailData.headers
+        ? Object.fromEntries(
+            emailData.headers.map((h: { name: string; value: string }) => [
+              h.name,
+              h.value,
+            ])
+          )
+        : undefined,
+    };
+
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${args.apiKey}`,
+        "Content-Type": "application/json",
+        "Idempotency-Key": args.emailId.toString(),
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      if (PERMANENT_ERROR_CODES.has(response.status)) {
+        await ctx.runMutation(internal.lib.markEmailsFailed, {
+          emailIds: [args.emailId],
+          errorMessage: `Resend API error: ${response.status} ${response.statusText} ${await response.text()}`,
+        });
+        return;
+      }
+      const errorText = await response.text();
+      throw new Error(`Resend API error: ${errorText}`);
+    }
+
+    const data = await response.json();
+    if (!data.id) {
+      throw new Error("Resend API error: No id returned");
+    }
+
+    await ctx.runMutation(internal.lib.updateEmailAfterDirectSend, {
+      emailId: args.emailId,
+      resendId: data.id,
+    });
+  },
+});
+
+export const updateEmailAfterDirectSend = internalMutation({
+  args: {
+    emailId: v.id("emails"),
+    resendId: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.emailId, {
+      status: "sent",
+      resendId: args.resendId,
+    });
+  },
+});

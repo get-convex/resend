@@ -138,3 +138,17 @@ export const handleEmailEvent = internalMutation({
     }
   },
 });
+
+export const testDirectSend = internalMutation({
+  handler: async (ctx) => {
+    const emailId = await resend.sendEmailDirect(ctx, {
+      from: "Test <test@resend.dev>",
+      to: "delivered@resend.dev",
+      subject: "Direct Send Test",
+      html: "<p>This email was sent directly without batching!</p>",
+    });
+    
+    console.log(`Direct email sent with ID: ${emailId}`);
+    return emailId;
+  },
+});
