@@ -138,3 +138,52 @@ export const handleEmailEvent = internalMutation({
     }
   },
 });
+
+export const sendManualEmail = internalAction({
+  args: {
+    from: v.optional(v.string()),
+    to: v.optional(v.string()),
+    subject: v.optional(v.string()),
+    text: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const from = args.from ?? "onboarding@resend.dev";
+    const to = args.to ?? "delivered@resend.dev";
+    const subject = args.subject ?? "Test Email";
+    const text = args.text ?? "This is a test email with a tag";
+    const emailId = await resend.sendEmailManually(
+      ctx,
+      { from, to, subject },
+      async (emailId) => {
+        const data = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from,
+            to,
+            subject,
+            text,
+            headers: [
+              {
+                name: "Idempotency-Key",
+                value: emailId,
+              },
+            ],
+            tags: [
+              {
+                name: "category",
+                value: "confirm_email",
+              },
+            ],
+          }),
+        });
+        const json = await data.json();
+        return json.id;
+      }
+    );
+    return emailId;
+  },
+});
