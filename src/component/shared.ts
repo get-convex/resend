@@ -53,11 +53,14 @@ const commonFields = {
   ),
   subject: v.string(),
   tags: v.optional(
-    v.array(
-      v.object({
-        name: v.string(),
-        value: v.string(),
-      })
+    v.union(
+      v.record(v.string(), v.string()),
+      v.array(
+        v.object({
+          name: v.string(),
+          value: v.string(),
+        })
+      )
     )
   ),
 };
