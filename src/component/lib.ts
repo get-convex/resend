@@ -620,7 +620,6 @@ const FIXED_WINDOW_DELAY = 100;
 async function getGoTime(ctx: RunMutationCtx): Promise<number> {
   const limit = await resendApiRateLimiter.limit(ctx, "resendApi", {
     reserve: true,
-    throws: true,
   });
   //console.log(`RL: ${limit.ok} ${limit.retryAfter}`);
   return Date.now() + FIXED_WINDOW_DELAY + (limit.retryAfter ?? 0);
