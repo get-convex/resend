@@ -365,6 +365,9 @@ export const makeBatch = internalMutation({
       });
     }
 
+    // Okay, let's calculate rate limiting as best we can globally in this distributed system.
+    const delay = await getDelay(ctx);
+
     // Give the batch to the workpool! It will call the Resend batch API
     // in a durable background action.
     await emailPool.enqueueAction(
@@ -380,6 +383,7 @@ export const makeBatch = internalMutation({
           initialBackoffMs: options.initialBackoffMs,
           base: 2,
         },
+        runAfter: delay,
         context: { emailIds: emails.map((e) => e._id) },
         onComplete: internal.lib.onEmailComplete,
       }
@@ -457,13 +461,6 @@ export const callResendAPIWithBatch = internalAction({
     }
 
     const [emailIds, body] = batchPayload;
-    // Okay, let's calculate rate limiting as best we can globally in this distributed system.
-    const goTime = await getGoTime(ctx);
-    const delay = goTime - Date.now();
-    //console.log(`RL Delay: ${delay}ms, goTime: ${goTime}`);
-    if (delay > 0) {
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    }
 
     // Make API call
     const response = await fetch("https://api.resend.com/emails/batch", {
@@ -617,12 +614,13 @@ async function createResendBatchPayload(
 }
 
 const FIXED_WINDOW_DELAY = 100;
-async function getGoTime(ctx: RunMutationCtx): Promise<number> {
+async function getDelay(ctx: RunMutationCtx): Promise<number> {
   const limit = await resendApiRateLimiter.limit(ctx, "resendApi", {
     reserve: true,
   });
   //console.log(`RL: ${limit.ok} ${limit.retryAfter}`);
-  return Date.now() + FIXED_WINDOW_DELAY + (limit.retryAfter ?? 0);
+  const jitter = Math.random() * FIXED_WINDOW_DELAY;
+  return limit.retryAfter ? limit.retryAfter + jitter : 0;
 }
 
 // Helper to fetch content by id. We'll use batch apis here to avoid lots of action->query calls.
