@@ -46,7 +46,7 @@ async function processSubPackages(packageJsonPath, exports, cleanup = false) {
       await fs.mkdir(newDir, { recursive: true });
       await fs.writeFile(
         newPackageJsonPath,
-        JSON.stringify(newPackageJson, null, 2),
+        JSON.stringify(newPackageJson, null, 2)
       );
     }
   }
@@ -71,11 +71,11 @@ async function main() {
 
     if (isCleanup) {
       console.log(
-        "Node10 module resolution compatibility stub directories removed.",
+        "Node10 module resolution compatibility stub directories removed."
       );
     } else {
       console.log(
-        "Node10 module resolution compatibility stub directories created",
+        "Node10 module resolution compatibility stub directories created"
       );
     }
   } catch (error) {

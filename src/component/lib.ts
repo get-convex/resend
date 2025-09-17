@@ -24,7 +24,12 @@ import { isDeepEqual } from "remeda";
 import schema from "./schema.js";
 import { omit } from "convex-helpers";
 import { parse } from "convex-helpers/validators";
-import { assertExhaustive, attemptToParse, iife, isValidResendTestEmail } from "./utils.js";
+import {
+  assertExhaustive,
+  attemptToParse,
+  iife,
+  isValidResendTestEmail,
+} from "./utils.js";
 
 // Move some of these to options? TODO
 const SEGMENT_MS = 125;
