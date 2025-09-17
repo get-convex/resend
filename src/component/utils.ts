@@ -34,7 +34,7 @@ export function attemptToParse<T extends Validator<any, any, any>>(
  * only says "any string": https://resend.com/docs/dashboard/emails/send-test-emails#using-labels-effectively
  * and a full RFC-5322 compliant regex would be way too long.
  */
-const RESEND_TEST_EMAIL_REGEXT = /^(delivered|bounced|complained)(\+[a-z0-9_-]*)?@resend\.dev$/;
+const RESEND_TEST_EMAIL_REGEXT = /^(delivered|bounced|complained)(\+[a-zA-Z0-9_-]*)?@resend\.dev$/;
 
 /**
  * Check if the given e-mail address is a valid test e-mail for Resend.

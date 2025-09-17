@@ -69,7 +69,7 @@ You can do this in `ResendOptions`, [as detailed below](#resend-component-option
 
 A note on test email addresses:
 [Resend allows the use of labels](https://resend.com/docs/dashboard/emails/send-test-emails#using-labels-effectively) for test emails. 
-For simplicity, this component only allows labels matching `[a-z0-9_-]*`, e.g. `delivered+user-1@resend.dev`.
+For simplicity, this component only allows labels matching `[a-zA-Z0-9_-]*`, e.g. `delivered+user-1@resend.dev`.
 
 ## Advanced Usage
 

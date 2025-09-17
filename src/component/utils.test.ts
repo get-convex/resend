@@ -15,6 +15,7 @@ describe("isValidResendTestEmail", () => {
     expect(isValidResendTestEmail("bounced+user-pw-reset-test@resend.dev")).toBe(true);
     expect(isValidResendTestEmail("complained+account-reset_test1@resend.dev")).toBe(true);
     expect(isValidResendTestEmail("complained+@resend.dev")).toBe(true);
+    expect(isValidResendTestEmail("complained+COMPLAINED@resend.dev")).toBe(true);
   });
 
   it("rejects invalid test emails with or without labels", () => {
