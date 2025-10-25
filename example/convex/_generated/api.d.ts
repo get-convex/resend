@@ -71,7 +71,7 @@ export declare const components: {
           headers?: Array<{ name: string; value: string }>;
           replyTo?: Array<string>;
           subject: string;
-          to: string;
+          to: Array<string> | string;
         },
         string
       >;
