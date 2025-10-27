@@ -71,7 +71,7 @@ export declare const components: {
           headers?: Array<{ name: string; value: string }>;
           replyTo?: Array<string>;
           subject: string;
-          to: string;
+          to: Array<string> | string;
         },
         string
       >;
@@ -80,9 +80,15 @@ export declare const components: {
         "internal",
         { emailId: string },
         {
+          bcc?: Array<string>;
+          bounceCount?: number;
+          cc?: Array<string>;
           complained: boolean;
+          complaintCount?: number;
           createdAt: number;
+          deliveryDelayedCount?: number;
           errorMessage?: string;
+          failedCount?: number;
           finalizedAt: number;
           from: string;
           headers?: Array<{ name: string; value: string }>;
@@ -102,7 +108,7 @@ export declare const components: {
             | "failed";
           subject: string;
           text?: string;
-          to: string;
+          to: Array<string>;
         } | null
       >;
       getStatus: FunctionReference<
@@ -134,6 +140,8 @@ export declare const components: {
         "mutation",
         "internal",
         {
+          bcc?: Array<string>;
+          cc?: Array<string>;
           from: string;
           headers?: Array<{ name: string; value: string }>;
           html?: string;
@@ -147,7 +155,7 @@ export declare const components: {
           replyTo?: Array<string>;
           subject: string;
           text?: string;
-          to: string;
+          to: Array<string>;
         },
         string
       >;
