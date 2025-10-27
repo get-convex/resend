@@ -763,7 +763,14 @@ export const handleEmailEvent = mutation({
 
       // These we dont do anything with
       if (event.type == "email.clicked") return null;
-      if (event.type == "email.failed") return null;
+
+      if (event.type == "email.failed")
+        return {
+          ...email,
+          status: "failed",
+          finalizedAt: Date.now(),
+          failedCount: (email.failedCount ?? 0) + 1,
+        };
 
       if (event.type == "email.delivered")
         return {
@@ -778,18 +785,21 @@ export const handleEmailEvent = mutation({
           status: "bounced",
           finalizedAt: Date.now(),
           errorMessage: event.data.bounce?.message,
+          bounceCount: (email.bounceCount ?? 0) + 1,
         };
 
       if (event.type == "email.delivery_delayed")
         return {
           ...email,
           status: "delivery_delayed",
+          deliveryDelayedCount: (email.deliveryDelayedCount ?? 0) + 1,
         };
 
       if (event.type == "email.complained")
         return {
           ...email,
           complained: true,
+          complaintCount: (email.complaintCount ?? 0) + 1,
         };
 
       if (event.type == "email.opened")

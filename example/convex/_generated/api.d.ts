@@ -81,10 +81,14 @@ export declare const components: {
         { emailId: string },
         {
           bcc?: Array<string>;
+          bounceCount?: number;
           cc?: Array<string>;
           complained: boolean;
+          complaintCount?: number;
           createdAt: number;
+          deliveryDelayedCount?: number;
           errorMessage?: string;
+          failedCount?: number;
           finalizedAt: number;
           from: string;
           headers?: Array<{ name: string; value: string }>;
