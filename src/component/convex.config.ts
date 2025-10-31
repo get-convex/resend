@@ -6,5 +6,6 @@ const component = defineComponent("resend");
 component.use(rateLimiter);
 component.use(workpool, { name: "emailWorkpool" });
 component.use(workpool, { name: "callbackWorkpool" });
+component.use(workpool, { name: "aggregateCountWorkpool" });
 
 export default component;

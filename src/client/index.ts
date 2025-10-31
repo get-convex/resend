@@ -9,7 +9,7 @@ import {
 } from "convex/server";
 import { v, type GenericId, type VString } from "convex/values";
 import { Webhook } from "svix";
-import type { api } from "../component/_generated/api.js";
+import { type api, components } from "../component/_generated/api.js";
 import {
   vEmailEvent,
   type EmailEvent,
@@ -18,6 +18,7 @@ import {
   type RuntimeConfig,
   type Status,
 } from "../component/shared.js";
+import { Workpool } from "@convex-dev/workpool";
 
 export type ResendComponent = UseApi<typeof api>;
 
@@ -381,6 +382,9 @@ export class Resend {
       emailId,
     });
   }
+  private aggregateCountPool = new Workpool(components.aggregateCountWorkpool, {
+    maxParallelism: 1,
+  });
 
   /**
    * Handles a Resend event webhook.
@@ -411,9 +415,13 @@ export class Resend {
     });
     const event: EmailEvent = payload as EmailEvent;
 
-    await ctx.runMutation(this.component.lib.handleEmailEvent, {
-      event,
-    });
+    await this.aggregateCountPool.enqueueMutation(
+      ctx,
+      this.component.lib.handleEmailEvent,
+      {
+        event,
+      }
+    );
 
     return new Response(null, {
       status: 201,
