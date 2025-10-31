@@ -9,7 +9,7 @@ import {
 } from "convex/server";
 import { v, type GenericId, type VString } from "convex/values";
 import { Webhook } from "svix";
-import type { api } from "../component/_generated/api.js";
+import { type api, components } from "../component/_generated/api.js";
 import {
   vEmailEvent,
   type EmailEvent,
@@ -18,6 +18,7 @@ import {
   type RuntimeConfig,
   type Status,
 } from "../component/shared.js";
+import { Workpool } from "@convex-dev/workpool";
 
 export type ResendComponent = UseApi<typeof api>;
 
@@ -144,7 +145,9 @@ export type EmailStatus = {
 
 export type SendEmailOptions = {
   from: string;
-  to: string;
+  to: string | string[];
+  cc?: string | string[];
+  bcc?: string | string[];
   subject: string;
   html?: string;
   text?: string;
@@ -247,7 +250,7 @@ export class Resend {
     replyTo?: string[],
     headers?: { name: string; value: string }[]
   ) {
-    const sendEmailArgs =
+    const sendEmailArgs: SendEmailOptions =
       typeof fromOrOptions === "string"
         ? {
             from: fromOrOptions,
@@ -265,6 +268,12 @@ export class Resend {
     const id = await ctx.runMutation(this.component.lib.sendEmail, {
       options: await configToRuntimeConfig(this.config, this.onEmailEvent),
       ...sendEmailArgs,
+      to:
+        typeof sendEmailArgs.to === "string"
+          ? [sendEmailArgs.to]
+          : sendEmailArgs.to,
+      cc: toArray(sendEmailArgs.cc),
+      bcc: toArray(sendEmailArgs.bcc),
     });
 
     return id as EmailId;
@@ -355,7 +364,7 @@ export class Resend {
     emailId: EmailId
   ): Promise<{
     from: string;
-    to: string;
+    to: string[];
     subject: string;
     replyTo: string[];
     headers?: { name: string; value: string }[];
@@ -373,6 +382,9 @@ export class Resend {
       emailId,
     });
   }
+  private aggregateCountPool = new Workpool(components.aggregateCountWorkpool, {
+    maxParallelism: 1,
+  });
 
   /**
    * Handles a Resend event webhook.
@@ -403,9 +415,13 @@ export class Resend {
     });
     const event: EmailEvent = payload as EmailEvent;
 
-    await ctx.runMutation(this.component.lib.handleEmailEvent, {
-      event,
-    });
+    await this.aggregateCountPool.enqueueMutation(
+      ctx,
+      this.component.lib.handleEmailEvent,
+      {
+        event,
+      }
+    );
 
     return new Response(null, {
       status: 201,
@@ -466,3 +482,8 @@ export type UseApi<API> = Expand<{
       >
     : UseApi<API[mod]>;
 }>;
+
+function toArray<T>(value: T | T[] | undefined): T[] | undefined {
+  if (value === undefined) return undefined;
+  return Array.isArray(value) ? value : [value];
+}

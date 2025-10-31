@@ -42,6 +42,24 @@ const FINALIZED_EMAIL_RETENTION_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 const FINALIZED_EPOCH = Number.MAX_SAFE_INTEGER;
 const ABANDONED_EMAIL_RETENTION_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
 
+const RESEND_TEST_EMAILS = ["delivered", "bounced", "complained"];
+
+function isTestEmail(email: string) {
+  const [prefix, domain] = email.split("@");
+  if (domain !== "resend.dev") {
+    return false;
+  }
+  for (const testEmail of RESEND_TEST_EMAILS) {
+    if (prefix === testEmail) {
+      return true;
+    }
+    if (prefix.startsWith(testEmail + "+")) {
+      return true;
+    }
+  }
+  return false;
+}
+
 const PERMANENT_ERROR_CODES = new Set([
   400, 401 /* 402 not included - unclear spec */, 403, 404, 405, 406, 407, 408,
   /* 409 not included - conflict may work on retry */
@@ -82,7 +100,9 @@ export const sendEmail = mutation({
   args: {
     options: vOptions,
     from: v.string(),
-    to: v.string(),
+    to: v.array(v.string()),
+    cc: v.optional(v.array(v.string())),
+    bcc: v.optional(v.array(v.string())),
     subject: v.string(),
     html: v.optional(v.string()),
     text: v.optional(v.string()),
@@ -99,10 +119,14 @@ export const sendEmail = mutation({
   returns: v.id("emails"),
   handler: async (ctx, args) => {
     // We only allow test emails in test mode.
-    if (args.options.testMode && !isValidResendTestEmail(args.to)) {
-      throw new Error(
-        `Test mode is enabled, but email address is not a valid resend test address. Did you want to set testMode: false in your ResendOptions?`
-      );
+    if (args.options.testMode) {
+      for (const to of [...args.to, ...(args.cc ?? []), ...(args.bcc ?? [])]) {
+        if (!isValidResendTestEmail(to)) {
+          throw new Error(
+            `Test mode is enabled, but email address is not a valid resend test address. Did you want to set testMode: false in your ResendOptions?`
+          );
+        }
+      }
     }
 
     // We require either html or text to be provided. No body = no bueno.
@@ -136,6 +160,8 @@ export const sendEmail = mutation({
     const emailId = await ctx.db.insert("emails", {
       from: args.from,
       to: args.to,
+      cc: args.cc,
+      bcc: args.bcc,
       subject: args.subject,
       html: htmlContentId,
       text: textContentId,
@@ -157,7 +183,7 @@ export const sendEmail = mutation({
 export const createManualEmail = mutation({
   args: {
     from: v.string(),
-    to: v.string(),
+    to: v.union(v.array(v.string()), v.string()),
     subject: v.string(),
     replyTo: v.optional(v.array(v.string())),
     headers: v.optional(
@@ -270,6 +296,7 @@ export const get = query({
       createdAt: v.number(),
       html: v.optional(v.string()),
       text: v.optional(v.string()),
+      to: v.array(v.string()),
     }),
     v.null()
   ),
@@ -289,6 +316,7 @@ export const get = query({
       createdAt: email._creationTime,
       html,
       text,
+      to: Array.isArray(email.to) ? email.to : [email.to],
     };
   },
 });
@@ -594,11 +622,13 @@ async function createResendBatchPayload(
   // Build payload for resend API.
   const batchPayload = emails.map((email: Doc<"emails">) => ({
     from: email.from,
-    to: [email.to],
+    to: Array.isArray(email.to) ? email.to : [email.to],
     subject: email.subject,
+    bcc: email.bcc,
+    cc: email.cc,
     html: email.html ? contentMap.get(email.html) : undefined,
     text: email.text ? contentMap.get(email.text) : undefined,
-    reply_to: email.replyTo && email.replyTo.length ? email.replyTo : undefined,
+    reply_to: email.replyTo ? email.replyTo : undefined,
     headers: email.headers
       ? Object.fromEntries(
           email.headers.map((h: { name: string; value: string }) => [
@@ -701,6 +731,31 @@ export const handleEmailEvent = mutation({
       return;
     }
 
+    // Record delivery-related events for auditing/analytics
+    const acceptedTypes = [
+      "email.sent",
+      "email.delivered",
+      "email.bounced",
+      "email.failed",
+      "email.delivery_delayed",
+      "email.complained",
+    ] as const;
+
+    if (acceptedTypes.includes(event.type as (typeof acceptedTypes)[number])) {
+      await ctx.db.insert("deliveryEvents", {
+        emailId: email._id,
+        resendId: event.data.email_id,
+        eventType: event.type as (typeof acceptedTypes)[number],
+        createdAt: event.created_at,
+        message:
+          event.type === "email.bounced"
+            ? event.data.bounce?.message
+            : event.type === "email.failed"
+              ? event.data.failed?.reason
+              : undefined,
+      });
+    }
+
     // Returns the changed email or null if not changed
     const changed = iife((): Doc<"emails"> | null => {
       // NOOP -- we do this automatically when we send the email.
@@ -708,7 +763,14 @@ export const handleEmailEvent = mutation({
 
       // These we dont do anything with
       if (event.type == "email.clicked") return null;
-      if (event.type == "email.failed") return null;
+
+      if (event.type == "email.failed")
+        return {
+          ...email,
+          status: "failed",
+          finalizedAt: Date.now(),
+          failedCount: (email.failedCount ?? 0) + 1,
+        };
 
       if (event.type == "email.delivered")
         return {
@@ -723,18 +785,21 @@ export const handleEmailEvent = mutation({
           status: "bounced",
           finalizedAt: Date.now(),
           errorMessage: event.data.bounce?.message,
+          bounceCount: (email.bounceCount ?? 0) + 1,
         };
 
       if (event.type == "email.delivery_delayed")
         return {
           ...email,
           status: "delivery_delayed",
+          deliveryDelayedCount: (email.deliveryDelayedCount ?? 0) + 1,
         };
 
       if (event.type == "email.complained")
         return {
           ...email,
           complained: true,
+          complaintCount: (email.complaintCount ?? 0) + 1,
         };
 
       if (event.type == "email.opened")
