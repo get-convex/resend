@@ -45,7 +45,9 @@ describe("handleEmailEvent", () => {
     const events = await t.run(async (ctx) =>
       ctx.db
         .query("deliveryEvents")
-        .withIndex("by_emailId", (q) => q.eq("emailId", email._id))
+        .withIndex("by_emailId_eventType", (q) =>
+          q.eq("emailId", email._id).eq("eventType", "email.delivered")
+        )
         .collect()
     );
     expect(events.length).toBe(1);
@@ -66,7 +68,9 @@ describe("handleEmailEvent", () => {
     const events = await t.run(async (ctx) =>
       ctx.db
         .query("deliveryEvents")
-        .withIndex("by_emailId", (q) => q.eq("emailId", email._id))
+        .withIndex("by_emailId_eventType", (q) =>
+          q.eq("emailId", email._id).eq("eventType", "email.complained")
+        )
         .collect()
     );
     expect(events.length).toBe(1);
@@ -90,7 +94,9 @@ describe("handleEmailEvent", () => {
     const events = await t.run(async (ctx) =>
       ctx.db
         .query("deliveryEvents")
-        .withIndex("by_emailId", (q) => q.eq("emailId", email._id))
+        .withIndex("by_emailId_eventType", (q) =>
+          q.eq("emailId", email._id).eq("eventType", "email.bounced")
+        )
         .collect()
     );
     expect(events.length).toBe(1);
