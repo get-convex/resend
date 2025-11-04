@@ -1,6 +1,6 @@
 /* eslint-disable */
 /**
- * Generated `api` utility.
+ * Generated `ComponentApi` utility.
  *
  * THIS CODE IS AUTOMATICALLY GENERATED.
  *
@@ -8,68 +8,42 @@
  * @module
  */
 
-import type * as crons from "../crons.js";
-import type * as example from "../example.js";
-import type * as http from "../http.js";
-
-import type {
-  ApiFromModules,
-  FilterApi,
-  FunctionReference,
-} from "convex/server";
-
-declare const fullApi: ApiFromModules<{
-  crons: typeof crons;
-  example: typeof example;
-  http: typeof http;
-}>;
+import type { FunctionReference } from "convex/server";
 
 /**
- * A utility for referencing Convex functions in your app's public API.
+ * A utility for referencing a Convex component's exposed API.
  *
+ * Useful when expecting a parameter like `components.myComponent`.
  * Usage:
- * ```js
- * const myFunctionReference = api.myModule.myFunction;
+ * ```ts
+ * async function myFunction(ctx: QueryCtx, component: ComponentApi) {
+ *   return ctx.runQuery(component.someFile.someQuery, { ...args });
+ * }
  * ```
  */
-export declare const api: FilterApi<
-  typeof fullApi,
-  FunctionReference<any, "public">
->;
-
-/**
- * A utility for referencing Convex functions in your app's internal API.
- *
- * Usage:
- * ```js
- * const myFunctionReference = internal.myModule.myFunction;
- * ```
- */
-export declare const internal: FilterApi<
-  typeof fullApi,
-  FunctionReference<any, "internal">
->;
-
-export declare const components: {
-  resend: {
+export type ComponentApi<Name extends string | undefined = string | undefined> =
+  {
     lib: {
       cancelEmail: FunctionReference<
         "mutation",
         "internal",
         { emailId: string },
-        null
+        null,
+        Name
       >;
       cleanupAbandonedEmails: FunctionReference<
         "mutation",
         "internal",
         { olderThan?: number },
-        null
+        null,
+        Name
       >;
       cleanupOldEmails: FunctionReference<
         "mutation",
         "internal",
         { olderThan?: number },
-        null
+        null,
+        Name
       >;
       createManualEmail: FunctionReference<
         "mutation",
@@ -81,7 +55,8 @@ export declare const components: {
           subject: string;
           to: string;
         },
-        string
+        string,
+        Name
       >;
       get: FunctionReference<
         "query",
@@ -111,7 +86,8 @@ export declare const components: {
           subject: string;
           text?: string;
           to: string;
-        } | null
+        } | null,
+        Name
       >;
       getStatus: FunctionReference<
         "query",
@@ -130,13 +106,15 @@ export declare const components: {
             | "delivery_delayed"
             | "bounced"
             | "failed";
-        } | null
+        } | null,
+        Name
       >;
       handleEmailEvent: FunctionReference<
         "mutation",
         "internal",
         { event: any },
-        null
+        null,
+        Name
       >;
       sendEmail: FunctionReference<
         "mutation",
@@ -157,7 +135,8 @@ export declare const components: {
           text?: string;
           to: string;
         },
-        string
+        string,
+        Name
       >;
       updateManualEmail: FunctionReference<
         "mutation",
@@ -176,8 +155,8 @@ export declare const components: {
             | "bounced"
             | "failed";
         },
-        null
+        null,
+        Name
       >;
     };
   };
-};

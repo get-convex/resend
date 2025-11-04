@@ -18,8 +18,9 @@ import {
   type RuntimeConfig,
   type Status,
 } from "../component/shared.js";
+import { ComponentApi } from "../component/_generated/component.js";
 
-export type ResendComponent = UseApi<typeof api>;
+export type ResendComponent = ComponentApi;
 
 export type EmailId = string & { __isEmailId: true };
 export const vEmailId = v.string() as VString<EmailId>;
@@ -171,7 +172,7 @@ export class Resend {
    * @param options The {@link ResendOptions} to use for this component.
    */
   constructor(
-    public component: UseApi<typeof api>,
+    public component: ComponentApi,
     options?: ResendOptions
   ) {
     const defaultConfig = getDefaultConfig();
@@ -437,32 +438,3 @@ export class Resend {
     });
   }
 }
-
-export type OpaqueIds<T> =
-  T extends GenericId<infer _T>
-    ? string
-    : T extends (infer U)[]
-      ? OpaqueIds<U>[]
-      : T extends ArrayBuffer
-        ? ArrayBuffer
-        : T extends object
-          ? { [K in keyof T]: OpaqueIds<T[K]> }
-          : T;
-
-export type UseApi<API> = Expand<{
-  [mod in keyof API]: API[mod] extends FunctionReference<
-    infer FType,
-    "public",
-    infer FArgs,
-    infer FReturnType,
-    infer FComponentPath
-  >
-    ? FunctionReference<
-        FType,
-        "internal",
-        OpaqueIds<FArgs>,
-        OpaqueIds<FReturnType>,
-        FComponentPath
-      >
-    : UseApi<API[mod]>;
-}>;

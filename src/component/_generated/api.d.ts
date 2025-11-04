@@ -8,9 +8,9 @@
  * @module
  */
 
-import type * as crons from "../crons.js";
 import type * as lib from "../lib.js";
 import type * as shared from "../shared.js";
+import type * as utils from "../utils.js";
 
 import type {
   ApiFromModules,
@@ -18,113 +18,35 @@ import type {
   FunctionReference,
 } from "convex/server";
 
+declare const fullApi: ApiFromModules<{
+  lib: typeof lib;
+  shared: typeof shared;
+  utils: typeof utils;
+}>;
+
 /**
- * A utility for referencing Convex functions in your app's API.
+ * A utility for referencing Convex functions in your app's public API.
  *
  * Usage:
  * ```js
  * const myFunctionReference = api.myModule.myFunction;
  * ```
  */
-declare const fullApi: ApiFromModules<{
-  crons: typeof crons;
-  lib: typeof lib;
-  shared: typeof shared;
-}>;
-export type Mounts = {
-  lib: {
-    cancelEmail: FunctionReference<
-      "mutation",
-      "public",
-      { emailId: string },
-      null
-    >;
-    get: FunctionReference<
-      "query",
-      "public",
-      { emailId: string },
-      {
-        complained: boolean;
-        errorMessage?: string;
-        finalizedAt: number;
-        from: string;
-        headers?: Array<{ name: string; value: string }>;
-        html?: string;
-        opened: boolean;
-        replyTo: Array<string>;
-        resendId?: string;
-        segment: number;
-        status:
-          | "waiting"
-          | "queued"
-          | "cancelled"
-          | "sent"
-          | "delivered"
-          | "delivery_delayed"
-          | "bounced";
-        subject: string;
-        text?: string;
-        to: string;
-      }
-    >;
-    getStatus: FunctionReference<
-      "query",
-      "public",
-      { emailId: string },
-      {
-        complained: boolean;
-        errorMessage: string | null;
-        opened: boolean;
-        status:
-          | "waiting"
-          | "queued"
-          | "cancelled"
-          | "sent"
-          | "delivered"
-          | "delivery_delayed"
-          | "bounced";
-      }
-    >;
-    handleEmailEvent: FunctionReference<
-      "mutation",
-      "public",
-      { event: any },
-      null
-    >;
-    sendEmail: FunctionReference<
-      "mutation",
-      "public",
-      {
-        from: string;
-        headers?: Array<{ name: string; value: string }>;
-        html?: string;
-        options: {
-          apiKey: string;
-          initialBackoffMs: number;
-          onEmailEvent?: { fnHandle: string };
-          retryAttempts: number;
-          testMode: boolean;
-        };
-        replyTo?: Array<string>;
-        subject: string;
-        text?: string;
-        to: string;
-      },
-      string
-    >;
-  };
-};
-// For now fullApiWithMounts is only fullApi which provides
-// jump-to-definition in component client code.
-// Use Mounts for the same type without the inference.
-declare const fullApiWithMounts: typeof fullApi;
-
 export declare const api: FilterApi<
-  typeof fullApiWithMounts,
+  typeof fullApi,
   FunctionReference<any, "public">
 >;
+
+/**
+ * A utility for referencing Convex functions in your app's internal API.
+ *
+ * Usage:
+ * ```js
+ * const myFunctionReference = internal.myModule.myFunction;
+ * ```
+ */
 export declare const internal: FilterApi<
-  typeof fullApiWithMounts,
+  typeof fullApi,
   FunctionReference<any, "internal">
 >;
 
