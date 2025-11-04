@@ -8,11 +8,13 @@ const schema = defineSchema({});
 function setupTest() {
   const t = convexTest(schema, modules);
   t.registerComponent("resend", componentSchema, componentModules);
-  return { t };
+  return t;
 }
 
-type ConvexTest = ReturnType<typeof setupTest>["t"];
+type ConvexTest = ReturnType<typeof setupTest>;
 
 describe("Resend", () => {
-  test("handleResendEventWebhook", async () => {});
+  test("handleResendEventWebhook", async () => {
+    const _t: ConvexTest = setupTest();
+  });
 });

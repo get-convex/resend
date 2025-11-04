@@ -1,15 +1,13 @@
 import {
   createFunctionHandle,
   internalMutationGeneric,
-  type Expand,
   type FunctionReference,
   type FunctionVisibility,
   type GenericDataModel,
   type GenericMutationCtx,
 } from "convex/server";
-import { v, type GenericId, type VString } from "convex/values";
+import { v, type VString } from "convex/values";
 import { Webhook } from "svix";
-import type { api } from "../component/_generated/api.js";
 import {
   vEmailEvent,
   type EmailEvent,
