@@ -65,7 +65,7 @@ describe("handleEmailEvent", () => {
     expect(updatedEmail.finalizedAt).toBeLessThan(Number.MAX_SAFE_INTEGER);
     expect(updatedEmail.finalizedAt).toBeGreaterThan(Date.now() - 10000); // Within last 10 seconds
     expect(updatedEmail.errorMessage).toBe(
-      "The email bounced due to invalid recipient"
+      "The email bounced due to invalid recipient",
     );
   });
 

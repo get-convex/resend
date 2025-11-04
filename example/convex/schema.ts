@@ -7,7 +7,7 @@ export default defineSchema({
     expectation: v.union(
       v.literal("delivered"),
       v.literal("bounced"),
-      v.literal("complained")
+      v.literal("complained"),
     ),
   }).index("by_email", ["email"]),
 });

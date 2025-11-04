@@ -27,8 +27,8 @@ export default defineSchema({
         v.object({
           name: v.string(),
           value: v.string(),
-        })
-      )
+        }),
+      ),
     ),
     status: vStatus,
     errorMessage: v.optional(v.string()),

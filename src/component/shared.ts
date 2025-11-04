@@ -19,7 +19,7 @@ export const vStatus = v.union(
   v.literal("delivered"),
   v.literal("delivery_delayed"),
   v.literal("bounced"),
-  v.literal("failed")
+  v.literal("failed"),
 );
 export type Status = Infer<typeof vStatus>;
 
@@ -48,8 +48,8 @@ const commonFields = {
       v.object({
         name: v.string(),
         value: v.string(),
-      })
-    )
+      }),
+    ),
   ),
   subject: v.string(),
   tags: v.optional(
@@ -59,9 +59,9 @@ const commonFields = {
         v.object({
           name: v.string(),
           value: v.string(),
-        })
-      )
-    )
+        }),
+      ),
+    ),
   ),
 };
 
@@ -133,7 +133,7 @@ export const vEmailEvent = v.union(
         reason: v.string(),
       }),
     }),
-  })
+  }),
 );
 
 export type EmailEvent = Infer<typeof vEmailEvent>;

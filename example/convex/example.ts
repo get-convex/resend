@@ -74,7 +74,7 @@ export const insertExpectation = internalMutation({
     expectation: v.union(
       v.literal("delivered"),
       v.literal("bounced"),
-      v.literal("complained")
+      v.literal("complained"),
     ),
   },
   returns: v.null(),
@@ -111,7 +111,7 @@ export const handleEmailEvent = internalMutation({
       }
       if (testEmail.expectation === "complained") {
         console.log(
-          "Complained email was delivered, expecting complaint coming..."
+          "Complained email was delivered, expecting complaint coming...",
         );
         return;
       }
@@ -121,7 +121,7 @@ export const handleEmailEvent = internalMutation({
     if (args.event.type === "email.bounced") {
       if (testEmail.expectation !== "bounced") {
         throw new Error(
-          `Email was bounced but expected to be ${testEmail.expectation}`
+          `Email was bounced but expected to be ${testEmail.expectation}`,
         );
       }
       // All good. Bounced email was bounced.
@@ -130,7 +130,7 @@ export const handleEmailEvent = internalMutation({
     if (args.event.type === "email.complained") {
       if (testEmail.expectation !== "complained") {
         throw new Error(
-          `Email was complained but expected to be ${testEmail.expectation}`
+          `Email was complained but expected to be ${testEmail.expectation}`,
         );
       }
       // All good. Complained email was complained.
@@ -182,7 +182,7 @@ export const sendManualEmail = internalAction({
         });
         const json = await data.json();
         return json.id;
-      }
+      },
     );
     return emailId;
   },

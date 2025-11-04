@@ -7,7 +7,7 @@ const crons = cronJobs();
 crons.interval(
   "Remove old emails from the resend component",
   { hours: 1 },
-  internal.crons.cleanupResend
+  internal.crons.cleanupResend,
 );
 
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -20,7 +20,7 @@ export const cleanupResend = internalMutation({
     await ctx.scheduler.runAfter(
       0,
       components.resend.lib.cleanupAbandonedEmails,
-      { olderThan: ONE_WEEK_MS }
+      { olderThan: ONE_WEEK_MS },
     );
   },
 });

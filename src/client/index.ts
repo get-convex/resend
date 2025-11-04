@@ -101,7 +101,7 @@ async function configToRuntimeConfig(
       id: EmailId;
       event: EmailEvent;
     }
-  > | null
+  > | null,
 ): Promise<RuntimeConfig> {
   return {
     apiKey: config.apiKey,
@@ -173,7 +173,7 @@ export class Resend {
    */
   constructor(
     public component: ComponentApi,
-    options?: ResendOptions
+    options?: ResendOptions,
   ) {
     const defaultConfig = getDefaultConfig();
     this.config = {
@@ -205,7 +205,7 @@ export class Resend {
    */
   async sendEmail(
     ctx: RunMutationCtx,
-    options: SendEmailOptions
+    options: SendEmailOptions,
   ): Promise<EmailId>;
   /**
    * Sends an email by providing individual arguments for `from`, `to`, `subject`, and optionally `html`, `text`, `replyTo`, and `headers`.
@@ -235,7 +235,7 @@ export class Resend {
     html?: string,
     text?: string,
     replyTo?: string[],
-    headers?: { name: string; value: string }[]
+    headers?: { name: string; value: string }[],
   ): Promise<EmailId>;
   /** @deprecated Use the object format e.g. `{ from, to, subject, html }` */
   async sendEmail(
@@ -246,7 +246,7 @@ export class Resend {
     html?: string,
     text?: string,
     replyTo?: string[],
-    headers?: { name: string; value: string }[]
+    headers?: { name: string; value: string }[],
   ) {
     const sendEmailArgs =
       typeof fromOrOptions === "string"
@@ -274,7 +274,7 @@ export class Resend {
   async sendEmailManually(
     ctx: RunMutationCtx,
     options: Omit<SendEmailOptions, "html" | "text">,
-    sendCallback: (emailId: EmailId) => Promise<string>
+    sendCallback: (emailId: EmailId) => Promise<string>,
   ): Promise<EmailId> {
     const emailId = (await ctx.runMutation(
       this.component.lib.createManualEmail,
@@ -284,7 +284,7 @@ export class Resend {
         subject: options.subject,
         replyTo: options.replyTo,
         headers: options.headers,
-      }
+      },
     )) as EmailId;
     try {
       const resendId = await sendCallback(emailId);
@@ -336,7 +336,7 @@ export class Resend {
    */
   async status(
     ctx: RunQueryCtx,
-    emailId: EmailId
+    emailId: EmailId,
   ): Promise<EmailStatus | null> {
     return await ctx.runQuery(this.component.lib.getStatus, {
       emailId,
@@ -353,7 +353,7 @@ export class Resend {
    */
   async get(
     ctx: RunQueryCtx,
-    emailId: EmailId
+    emailId: EmailId,
   ): Promise<{
     from: string;
     to: string;
@@ -387,7 +387,7 @@ export class Resend {
    */
   async handleResendEventWebhook(
     ctx: RunMutationCtx,
-    req: Request
+    req: Request,
   ): Promise<Response> {
     if (this.config.webhookSecret === "") {
       throw new Error("Webhook secret is not set");
@@ -426,8 +426,8 @@ export class Resend {
   defineOnEmailEvent<DataModel extends GenericDataModel>(
     handler: (
       ctx: GenericMutationCtx<DataModel>,
-      args: { id: EmailId; event: EmailEvent }
-    ) => Promise<void>
+      args: { id: EmailId; event: EmailEvent },
+    ) => Promise<void>,
   ) {
     return internalMutationGeneric({
       args: {
