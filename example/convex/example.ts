@@ -49,12 +49,22 @@ export const sendOne = internalAction({
   args: { to: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const email = await resend.sendEmail(ctx, {
-      from: "<your-verified-sender-address>",
+      from: "onboarding@resend.dev",
       to: args.to ?? [
         "delivered@resend.dev",
         "delivered+1@resend.dev",
         "bounced@resend.dev",
         "complained@resend.dev",
+        "complained+1@resend.dev",
+        "complained+2@resend.dev",
+        "complained+3@resend.dev",
+        "complained+4@resend.dev",
+        "complained+5@resend.dev",
+        "complained+6@resend.dev",
+        "complained+7@resend.dev",
+        "complained+8@resend.dev",
+        "complained+9@resend.dev",
+        "complained+10@resend.dev",
       ],
       subject: "Test Email",
       html: "This is a test email",

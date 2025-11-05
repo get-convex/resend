@@ -24,13 +24,14 @@ export default defineSchema({
       v.literal("email.bounced"),
       v.literal("email.complained"),
       v.literal("email.failed"),
-      v.literal("email.delivery_delayed")
+      v.literal("email.delivery_delayed"),
+      v.literal("email.opened"),
+      v.literal("email.clicked")
     ),
     createdAt: v.string(),
     message: v.optional(v.string()),
-  })
-    .index("by_emailId", ["emailId"])
-    .index("by_resendId", ["resendId"]),
+    aggregated: v.optional(v.boolean()),
+  }).index("by_emailId_aggregated", ["emailId", "aggregated"]),
   emails: defineTable({
     from: v.string(),
     to: v.union(v.array(v.string()), v.string()),
