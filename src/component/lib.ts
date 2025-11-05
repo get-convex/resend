@@ -688,9 +688,6 @@ function computeEmailUpdateFromEvent(
   email: Doc<"emails">,
   event: EmailEvent
 ): Doc<"emails"> | null {
-  // Once complained, we freeze further status updates (but still record deliveryEvents elsewhere)
-  const complainedAlready = email.complained === true;
-
   // Define precedence for statuses; only allow upgrades
   const statusRank: Record<Doc<"emails">["status"], number> = {
     waiting: 0,
@@ -706,7 +703,6 @@ function computeEmailUpdateFromEvent(
   const currentRank = statusRank[email.status];
   const canUpgradeTo = (next: Doc<"emails">["status"]) => {
     if (email.status === "cancelled") return false;
-    if (complainedAlready) return false;
     return statusRank[next] > currentRank;
   };
 
@@ -771,7 +767,6 @@ function computeEmailUpdateFromEvent(
   }
 
   if (event.type == "email.opened") {
-    if (complainedAlready) return null;
     if (email.opened) return null;
     return {
       ...email,
