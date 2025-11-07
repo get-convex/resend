@@ -37,7 +37,7 @@ Next, add the component to your Convex app via `convex/convex.config.ts`:
 
 ```ts
 import { defineApp } from "convex/server";
-import resend from "@convex-dev/resend/convex.config";
+import resend from "@convex-dev/resend/convex.config.js";
 
 const app = defineApp();
 app.use(resend);
