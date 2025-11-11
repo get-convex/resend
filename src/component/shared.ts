@@ -32,6 +32,10 @@ export const vOptions = v.object({
   onEmailEvent: v.optional(onEmailEvent),
 });
 
+export const vAccountOptions = v.object({
+  rateLimitEmailsPerSecond: v.number(),
+});
+
 export type RuntimeConfig = Infer<typeof vOptions>;
 
 const commonFields = {

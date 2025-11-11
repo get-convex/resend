@@ -1,6 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
-import { vOptions, vStatus } from "./shared.js";
+import { vAccountOptions, vOptions, vStatus } from "./shared.js";
 
 export default defineSchema({
   content: defineTable({
@@ -14,6 +14,9 @@ export default defineSchema({
   }),
   lastOptions: defineTable({
     options: vOptions,
+  }),
+  resendAccountOptions: defineTable({
+    options: vAccountOptions,
   }),
   emails: defineTable({
     from: v.string(),
