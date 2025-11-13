@@ -19,7 +19,7 @@ import {
   vStatus,
 } from "./shared.js";
 import type { FunctionHandle } from "convex/server";
-import type { EmailEvent, RunMutationCtx } from "./shared.js";
+import type { EmailEvent, RunMutationCtx, RunQueryCtx } from "./shared.js";
 import { isDeepEqual } from "remeda";
 import schema from "./schema.js";
 import { omit } from "convex-helpers";
@@ -92,8 +92,8 @@ export const sendEmail = mutation({
         v.object({
           name: v.string(),
           value: v.string(),
-        })
-      )
+        }),
+      ),
     ),
   },
   returns: v.id("emails"),
@@ -101,7 +101,7 @@ export const sendEmail = mutation({
     // We only allow test emails in test mode.
     if (args.options.testMode && !isValidResendTestEmail(args.to)) {
       throw new Error(
-        `Test mode is enabled, but email address is not a valid resend test address. Did you want to set testMode: false in your ResendOptions?`
+        `Test mode is enabled, but email address is not a valid resend test address. Did you want to set testMode: false in your ResendOptions?`,
       );
     }
 
@@ -165,8 +165,8 @@ export const createManualEmail = mutation({
         v.object({
           name: v.string(),
           value: v.string(),
-        })
-      )
+        }),
+      ),
     ),
   },
   returns: v.id("emails"),
@@ -243,7 +243,7 @@ export const getStatus = query({
       complained: v.boolean(),
       opened: v.boolean(),
     }),
-    v.null()
+    v.null(),
   ),
   handler: async (ctx, args) => {
     const email = await ctx.db.get(args.emailId);
@@ -271,7 +271,7 @@ export const get = query({
       html: v.optional(v.string()),
       text: v.optional(v.string()),
     }),
-    v.null()
+    v.null(),
   ),
   handler: async (ctx, args) => {
     const email = await ctx.db.get(args.emailId);
@@ -319,7 +319,7 @@ async function scheduleBatchRun(ctx: MutationCtx, options: RuntimeConfig) {
   const runId = await ctx.scheduler.runAfter(
     BASE_BATCH_DELAY,
     internal.lib.makeBatch,
-    { reloop: false, segment: getSegment(Date.now() + BASE_BATCH_DELAY) }
+    { reloop: false, segment: getSegment(Date.now() + BASE_BATCH_DELAY) },
   );
 
   // Insert the new worker to reserve exactly one running.
@@ -345,7 +345,7 @@ export const makeBatch = internalMutation({
       .query("emails")
       .withIndex("by_status_segment", (q) =>
         // We scan earlier than two segments ago to avoid contention between new email insertions and batch creation.
-        q.eq("status", "waiting").lte("segment", args.segment - 2)
+        q.eq("status", "waiting").lte("segment", args.segment - 2),
       )
       .take(BATCH_SIZE);
 
@@ -385,7 +385,7 @@ export const makeBatch = internalMutation({
         runAfter: delay,
         context: { emailIds: emails.map((e) => e._id) },
         onComplete: internal.lib.onEmailComplete,
-      }
+      },
     );
 
     // Let's go around again until there are no more batches to make in this particular segment range.
@@ -426,7 +426,7 @@ async function reschedule(ctx: MutationCtx, emailsLeft: boolean) {
 // Helper to fetch content. We'll use batch apis here to avoid lots of action->query calls.
 async function getAllContent(
   ctx: ActionCtx,
-  contentIds: Id<"content">[]
+  contentIds: Id<"content">[],
 ): Promise<Map<Id<"content">, string>> {
   const docs = await ctx.runQuery(internal.lib.getAllContentByIds, {
     contentIds,
@@ -439,7 +439,7 @@ const vBatchReturns = v.union(
   v.object({
     emailIds: v.array(v.id("emails")),
     resendIds: v.array(v.string()),
-  })
+  }),
 );
 
 // Okay, finally! Let's call the Resend API with the batch of emails.
@@ -510,7 +510,7 @@ async function markEmailsFailedHandler(
   args: {
     emailIds: Id<"emails">[];
     errorMessage: string;
-  }
+  },
 ) {
   await Promise.all(
     args.emailIds.map(async (emailId) => {
@@ -523,7 +523,7 @@ async function markEmailsFailedHandler(
         errorMessage: args.errorMessage,
         finalizedAt: Date.now(),
       });
-    })
+    }),
   );
 }
 
@@ -543,8 +543,8 @@ export const onEmailComplete = emailPool.defineOnComplete({
           ctx.db.patch(emailId, {
             status: "sent",
             resendId: resendIds[i],
-          })
-        )
+          }),
+        ),
       );
     } else if (args.result.kind === "failed") {
       await markEmailsFailedHandler(ctx, {
@@ -563,7 +563,7 @@ export const onEmailComplete = emailPool.defineOnComplete({
             errorMessage: "Resend API batch job was cancelled",
             finalizedAt: Date.now(),
           });
-        })
+        }),
       );
     }
   },
@@ -572,7 +572,7 @@ export const onEmailComplete = emailPool.defineOnComplete({
 // Helper to create the JSON payload for the Resend API.
 async function createResendBatchPayload(
   ctx: ActionCtx,
-  emailIds: Id<"emails">[]
+  emailIds: Id<"emails">[],
 ): Promise<[Id<"emails">[], string] | null> {
   // Fetch emails from database.
   const allEmails = await ctx.runQuery(internal.lib.getEmailsByIds, {
@@ -588,7 +588,7 @@ async function createResendBatchPayload(
     ctx,
     emails
       .flatMap((e) => [e.html, e.text])
-      .filter((id): id is Id<"content"> => id !== undefined)
+      .filter((id): id is Id<"content"> => id !== undefined),
   );
 
   // Build payload for resend API.
@@ -604,7 +604,7 @@ async function createResendBatchPayload(
           email.headers.map((h: { name: string; value: string }) => [
             h.name,
             h.value,
-          ])
+          ]),
         )
       : undefined,
   }));
@@ -613,7 +613,7 @@ async function createResendBatchPayload(
 }
 
 const FIXED_WINDOW_DELAY = 100;
-async function getDelay(ctx: RunMutationCtx): Promise<number> {
+async function getDelay(ctx: RunMutationCtx & RunQueryCtx): Promise<number> {
   const limit = await resendApiRateLimiter.limit(ctx, "resendApi", {
     reserve: true,
   });
@@ -682,7 +682,7 @@ export const handleEmailEvent = mutation({
     const result = attemptToParse(vEmailEvent, args.event);
     if (result.kind === "error") {
       console.warn(
-        `Invalid email event received. You might want to to exclude this event from your Resend webhook settings in the Resend dashboard. ${result.error}.`
+        `Invalid email event received. You might want to to exclude this event from your Resend webhook settings in the Resend dashboard. ${result.error}.`,
       );
       return;
     }
@@ -696,7 +696,7 @@ export const handleEmailEvent = mutation({
 
     if (!email) {
       console.info(
-        `Email not found for resendId: ${event.data.email_id}, ignoring...`
+        `Email not found for resendId: ${event.data.email_id}, ignoring...`,
       );
       return;
     }
@@ -757,7 +757,7 @@ export const handleEmailEvent = mutation({
 async function enqueueCallbackIfExists(
   ctx: MutationCtx,
   email: Doc<"emails">,
-  event: EmailEvent
+  event: EmailEvent,
 ) {
   const lastOptions = await ctx.db.query("lastOptions").unique();
   if (!lastOptions) {
@@ -789,7 +789,7 @@ export const cleanupOldEmails = mutation({
     const oldAndDone = await ctx.db
       .query("emails")
       .withIndex("by_finalizedAt", (q) =>
-        q.lt("finalizedAt", Date.now() - olderThan)
+        q.lt("finalizedAt", Date.now() - olderThan),
       )
       .take(500);
     for (const email of oldAndDone) {
@@ -822,7 +822,7 @@ export const cleanupAbandonedEmails = mutation({
     const oldAndAbandoned = await ctx.db
       .query("emails")
       .withIndex("by_creation_time", (q) =>
-        q.lt("_creationTime", Date.now() - olderThan)
+        q.lt("_creationTime", Date.now() - olderThan),
       )
       .take(500);
 

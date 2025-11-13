@@ -10,10 +10,9 @@ export const iife = <T>(fn: () => T): T => fn();
 /**
  * Generic function to attempt parsing with proper TypeScript type narrowing
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function attemptToParse<T extends Validator<any, any, any>>(
   validator: T,
-  value: unknown
+  value: unknown,
 ): { kind: "success"; data: Infer<T> } | { kind: "error"; error: unknown } {
   try {
     return {

@@ -12,14 +12,14 @@ describe("isValidResendTestEmail", () => {
     expect(isValidResendTestEmail("delivered+user-1@resend.dev")).toBe(true);
     expect(isValidResendTestEmail("delivered+foo-bar@resend.dev")).toBe(true);
     expect(
-      isValidResendTestEmail("bounced+user-pw-reset-test@resend.dev")
+      isValidResendTestEmail("bounced+user-pw-reset-test@resend.dev"),
     ).toBe(true);
     expect(
-      isValidResendTestEmail("complained+account-reset_test1@resend.dev")
+      isValidResendTestEmail("complained+account-reset_test1@resend.dev"),
     ).toBe(true);
     expect(isValidResendTestEmail("complained+@resend.dev")).toBe(true);
     expect(isValidResendTestEmail("complained+COMPLAINED@resend.dev")).toBe(
-      true
+      true,
     );
   });
 

@@ -23,7 +23,7 @@ test("setup", () => {});
 
 export const createTestEventOfType = <T extends EventEventTypes>(
   type: T,
-  overrides?: Partial<EventEventOfType<T>>
+  overrides?: Partial<EventEventOfType<T>>,
 ): EventEventOfType<T> => {
   const baseData = {
     email_id: "test-resend-id-123",
@@ -159,7 +159,7 @@ export const createTestRuntimeConfig = (): RuntimeConfig => ({
 
 export const setupTestLastOptions = (
   t: Tester,
-  overrides?: Partial<Doc<"lastOptions">>
+  overrides?: Partial<Doc<"lastOptions">>,
 ) =>
   t.run(async (ctx) => {
     await ctx.db.insert("lastOptions", {
@@ -172,7 +172,7 @@ export const setupTestLastOptions = (
 
 export const insertTestEmail = (
   t: Tester,
-  overrides: Omit<Doc<"emails">, "_id" | "_creationTime">
+  overrides: Omit<Doc<"emails">, "_id" | "_creationTime">,
 ) =>
   t.run(async (ctx) => {
     const id = await ctx.db.insert("emails", overrides);
@@ -183,7 +183,7 @@ export const insertTestEmail = (
 
 export const insertTestSentEmail = (
   t: Tester,
-  overrides?: Partial<Doc<"emails">>
+  overrides?: Partial<Doc<"emails">>,
 ) =>
   insertTestEmail(t, {
     from: "test@example.com",

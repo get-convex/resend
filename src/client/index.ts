@@ -1,15 +1,13 @@
 import {
   createFunctionHandle,
   internalMutationGeneric,
-  type Expand,
   type FunctionReference,
   type FunctionVisibility,
   type GenericDataModel,
   type GenericMutationCtx,
 } from "convex/server";
-import { v, type GenericId, type VString } from "convex/values";
+import { v, type VString } from "convex/values";
 import { Webhook } from "svix";
-import type { api } from "../component/_generated/api.js";
 import {
   vEmailEvent,
   type EmailEvent,
@@ -18,8 +16,9 @@ import {
   type RuntimeConfig,
   type Status,
 } from "../component/shared.js";
+import { ComponentApi } from "../component/_generated/component.js";
 
-export type ResendComponent = UseApi<typeof api>;
+export type ResendComponent = ComponentApi;
 
 export type EmailId = string & { __isEmailId: true };
 export const vEmailId = v.string() as VString<EmailId>;
@@ -100,7 +99,7 @@ async function configToRuntimeConfig(
       id: EmailId;
       event: EmailEvent;
     }
-  > | null
+  > | null,
 ): Promise<RuntimeConfig> {
   return {
     apiKey: config.apiKey,
@@ -171,8 +170,8 @@ export class Resend {
    * @param options The {@link ResendOptions} to use for this component.
    */
   constructor(
-    public component: UseApi<typeof api>,
-    options?: ResendOptions
+    public component: ComponentApi,
+    options?: ResendOptions,
   ) {
     const defaultConfig = getDefaultConfig();
     this.config = {
@@ -204,7 +203,7 @@ export class Resend {
    */
   async sendEmail(
     ctx: RunMutationCtx,
-    options: SendEmailOptions
+    options: SendEmailOptions,
   ): Promise<EmailId>;
   /**
    * Sends an email by providing individual arguments for `from`, `to`, `subject`, and optionally `html`, `text`, `replyTo`, and `headers`.
@@ -234,7 +233,7 @@ export class Resend {
     html?: string,
     text?: string,
     replyTo?: string[],
-    headers?: { name: string; value: string }[]
+    headers?: { name: string; value: string }[],
   ): Promise<EmailId>;
   /** @deprecated Use the object format e.g. `{ from, to, subject, html }` */
   async sendEmail(
@@ -245,7 +244,7 @@ export class Resend {
     html?: string,
     text?: string,
     replyTo?: string[],
-    headers?: { name: string; value: string }[]
+    headers?: { name: string; value: string }[],
   ) {
     const sendEmailArgs =
       typeof fromOrOptions === "string"
@@ -273,7 +272,7 @@ export class Resend {
   async sendEmailManually(
     ctx: RunMutationCtx,
     options: Omit<SendEmailOptions, "html" | "text">,
-    sendCallback: (emailId: EmailId) => Promise<string>
+    sendCallback: (emailId: EmailId) => Promise<string>,
   ): Promise<EmailId> {
     const emailId = (await ctx.runMutation(
       this.component.lib.createManualEmail,
@@ -283,7 +282,7 @@ export class Resend {
         subject: options.subject,
         replyTo: options.replyTo,
         headers: options.headers,
-      }
+      },
     )) as EmailId;
     try {
       const resendId = await sendCallback(emailId);
@@ -335,7 +334,7 @@ export class Resend {
    */
   async status(
     ctx: RunQueryCtx,
-    emailId: EmailId
+    emailId: EmailId,
   ): Promise<EmailStatus | null> {
     return await ctx.runQuery(this.component.lib.getStatus, {
       emailId,
@@ -352,7 +351,7 @@ export class Resend {
    */
   async get(
     ctx: RunQueryCtx,
-    emailId: EmailId
+    emailId: EmailId,
   ): Promise<{
     from: string;
     to: string;
@@ -386,7 +385,7 @@ export class Resend {
    */
   async handleResendEventWebhook(
     ctx: RunMutationCtx,
-    req: Request
+    req: Request,
   ): Promise<Response> {
     if (this.config.webhookSecret === "") {
       throw new Error("Webhook secret is not set");
@@ -425,8 +424,8 @@ export class Resend {
   defineOnEmailEvent<DataModel extends GenericDataModel>(
     handler: (
       ctx: GenericMutationCtx<DataModel>,
-      args: { id: EmailId; event: EmailEvent }
-    ) => Promise<void>
+      args: { id: EmailId; event: EmailEvent },
+    ) => Promise<void>,
   ) {
     return internalMutationGeneric({
       args: {
@@ -437,32 +436,3 @@ export class Resend {
     });
   }
 }
-
-export type OpaqueIds<T> =
-  T extends GenericId<infer _T>
-    ? string
-    : T extends (infer U)[]
-      ? OpaqueIds<U>[]
-      : T extends ArrayBuffer
-        ? ArrayBuffer
-        : T extends object
-          ? { [K in keyof T]: OpaqueIds<T[K]> }
-          : T;
-
-export type UseApi<API> = Expand<{
-  [mod in keyof API]: API[mod] extends FunctionReference<
-    infer FType,
-    "public",
-    infer FArgs,
-    infer FReturnType,
-    infer FComponentPath
-  >
-    ? FunctionReference<
-        FType,
-        "internal",
-        OpaqueIds<FArgs>,
-        OpaqueIds<FReturnType>,
-        FComponentPath
-      >
-    : UseApi<API[mod]>;
-}>;

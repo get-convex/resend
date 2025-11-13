@@ -7,7 +7,7 @@
     "email": "support@convex.dev",
     "url": "https://github.com/get-convex/resend/issues"
   },
-  "version": "0.1.13",
+  "version": "0.2.0",
   "license": "Apache-2.0",
   "keywords": [
     "convex",
@@ -15,30 +15,28 @@
   ],
   "type": "module",
   "scripts": {
-    "example": "cd example && npm run dev",
-    "dev": "run-p -r 'example' 'build:watch'",
-    "dashboard": "cd example && npx convex dashboard",
-    "all": "run-p -r 'example' 'build:watch' 'test:watch'",
-    "setup": "npm i && npm run build && cd example && npm i && npx convex dev --once --live-component-sources --typecheck-components",
-    "build:watch": "npx chokidar 'tsconfig*.json' 'src/**/*.ts' -c 'npm run build' --initial",
-    "build": "tsc --project ./tsconfig.build.json && tsc-alias -p tsconfig.build.json",
-    "alpha": "npm run clean && npm run build && run-p test lint typecheck && npm version prerelease --preid alpha && npm publish --tag alpha && git push --tags",
-    "release": "npm run clean && npm run build && run-p test lint typecheck && npm version patch && npm publish && git push --tags",
-    "clean": "rm -rf dist tsconfig.build.tsbuildinfo",
-    "typecheck": "tsc --noEmit",
-    "prepare": "npm run build",
-    "prepack": "node node10stubs.mjs",
-    "postpack": "node node10stubs.mjs --cleanup",
-    "test": "vitest run --typecheck --config ./src/vitest.config.ts",
-    "test:watch": "vitest --typecheck --config ./src/vitest.config.ts",
-    "test:debug": "vitest --inspect-brk --no-file-parallelism --config ./src/vitest.config.ts",
+    "dev": "run-p -r 'dev:*'",
+    "dev:backend": "convex dev --typecheck-components",
+    "dev:frontend": "cd example && vite --clearScreen false",
+    "dev:build": "chokidar 'tsconfig*.json' 'src/**/*.ts' -i '**/*.test.ts' -c 'convex codegen --component-dir ./src/component && npm run build' --initial",
+    "predev": "npm run dev:backend -- --until-success",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "build": "tsc --project ./tsconfig.build.json",
+    "typecheck": "tsc --noEmit && tsc -p example/convex",
+    "lint": "eslint .",
+    "all": "run-p -r 'dev:*' 'test:watch'",
+    "test": "vitest run --typecheck",
+    "test:watch": "vitest --typecheck --clearScreen false",
+    "test:debug": "vitest --inspect-brk --no-file-parallelism",
     "test:coverage": "vitest run --coverage --coverage.reporter=text",
-    "lint": "eslint src"
+    "prepare": "npm run build",
+    "alpha": "npm run clean && npm ci && run-p test lint typecheck && npm version prerelease --preid alpha && npm publish --tag alpha && git push --tags",
+    "release": "npm run clean && npm ci && run-p test lint typecheck && npm version patch && npm publish && git push --tags",
+    "version": "pbcopy <<<$npm_package_version; vim CHANGELOG.md && prettier -w CHANGELOG.md && git add CHANGELOG.md"
   },
   "files": [
     "dist",
-    "src",
-    "react"
+    "src"
   ],
   "exports": {
     "./package.json": "./package.json",
@@ -46,27 +44,37 @@
       "types": "./dist/client/index.d.ts",
       "default": "./dist/client/index.js"
     },
+    "./test": "./src/test.ts",
+    "./_generated/component.js": {
+      "types": "./dist/component/_generated/component.d.ts"
+    },
     "./convex.config": {
+      "types": "./dist/component/convex.config.d.ts",
+      "default": "./dist/component/convex.config.js"
+    },
+    "./convex.config.js": {
       "types": "./dist/component/convex.config.d.ts",
       "default": "./dist/component/convex.config.js"
     }
   },
   "peerDependencies": {
-    "convex": "^1.23.0",
+    "convex": "^1.24.8",
     "convex-helpers": "^0.1.99"
   },
   "devDependencies": {
-    "@edge-runtime/vm": "^5.0.0",
+    "@edge-runtime/vm": "5.0.0",
     "@eslint/eslintrc": "^3.3.1",
     "@eslint/js": "^9.38.0",
-    "@types/node": "^22.18.13",
-    "chokidar-cli": "^3.0.0",
+    "@types/node": "20.19.24",
+    "chokidar-cli": "3.0.0",
     "convex": "1.29.0",
     "convex-test": "^0.0.33",
     "cpy-cli": "^5.0.0",
     "eslint": "^9.38.0",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^15.15.0",
-    "npm-run-all2": "^7.0.2",
+    "npm-run-all2": "7.0.2",
     "pkg-pr-new": "^0.0.54",
     "prettier": "3.2.5",
     "react": "^19.2.0",
@@ -76,12 +84,11 @@
     "typescript-eslint": "^8.46.2",
     "vitest": "^3.2.4"
   },
-  "main": "./dist/client/index.js",
   "types": "./dist/client/index.d.ts",
   "module": "./dist/client/index.js",
   "dependencies": {
-    "@convex-dev/rate-limiter": "^0.2.10",
-    "@convex-dev/workpool": "^0.2.17",
+    "@convex-dev/rate-limiter": "^0.3.0",
+    "@convex-dev/workpool": "^0.3.0",
     "remeda": "^2.26.0",
     "svix": "^1.70.0"
   }
