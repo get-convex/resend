@@ -87,8 +87,8 @@
   "types": "./dist/client/index.d.ts",
   "module": "./dist/client/index.js",
   "dependencies": {
-    "@convex-dev/rate-limiter": "^0.2.10",
-    "@convex-dev/workpool": "^0.2.17",
+    "@convex-dev/rate-limiter": "^0.3.0",
+    "@convex-dev/workpool": "^0.3.0",
     "remeda": "^2.26.0",
     "svix": "^1.70.0"
   }
