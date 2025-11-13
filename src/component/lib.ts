@@ -19,7 +19,7 @@ import {
   vStatus,
 } from "./shared.js";
 import type { FunctionHandle } from "convex/server";
-import type { EmailEvent, RunMutationCtx } from "./shared.js";
+import type { EmailEvent, RunMutationCtx, RunQueryCtx } from "./shared.js";
 import { isDeepEqual } from "remeda";
 import schema from "./schema.js";
 import { omit } from "convex-helpers";
@@ -613,7 +613,7 @@ async function createResendBatchPayload(
 }
 
 const FIXED_WINDOW_DELAY = 100;
-async function getDelay(ctx: RunMutationCtx): Promise<number> {
+async function getDelay(ctx: RunMutationCtx & RunQueryCtx): Promise<number> {
   const limit = await resendApiRateLimiter.limit(ctx, "resendApi", {
     reserve: true,
   });
