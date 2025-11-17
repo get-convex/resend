@@ -147,6 +147,8 @@ export type SendEmailOptions = {
   subject: string;
   html?: string;
   text?: string;
+  template?: string;
+  variables?: Record<string, string>;
   replyTo?: string[];
   headers?: { name: string; value: string }[];
 };
@@ -271,7 +273,7 @@ export class Resend {
 
   async sendEmailManually(
     ctx: RunMutationCtx,
-    options: Omit<SendEmailOptions, "html" | "text">,
+    options: Omit<SendEmailOptions, "html" | "text" | "template" | "variables">,
     sendCallback: (emailId: EmailId) => Promise<string>,
   ): Promise<EmailId> {
     const emailId = (await ctx.runMutation(
@@ -367,6 +369,8 @@ export class Resend {
     createdAt: number;
     html?: string;
     text?: string;
+    template?: string;
+    variables?: Record<string, string>;
   } | null> {
     return await ctx.runQuery(this.component.lib.get, {
       emailId,

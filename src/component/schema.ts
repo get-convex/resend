@@ -22,6 +22,8 @@ export default defineSchema({
     replyTo: v.array(v.string()),
     html: v.optional(v.id("content")),
     text: v.optional(v.id("content")),
+    template: v.optional(v.string()),
+    variables: v.optional(v.record(v.string(), v.string())),
     headers: v.optional(
       v.array(
         v.object({
