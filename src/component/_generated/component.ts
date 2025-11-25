@@ -87,7 +87,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             | "failed";
           subject: string;
           text?: string;
-          to: string;
+          to: Array<string>;
         } | null,
         Name
       >;
@@ -137,7 +137,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           replyTo?: Array<string>;
           subject: string;
           text?: string;
-          to: string;
+          to: Array<string>;
         },
         string,
         Name
