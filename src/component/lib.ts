@@ -101,7 +101,7 @@ export const sendEmail = mutation({
   returns: v.id("emails"),
   handler: async (ctx, args) => {
     // We only allow test emails in test mode.
-    if (args.options.testMode && !isValidResendTestEmail(args.to)) {
+    if (args.options.testMode && !args.to.every(isValidResendTestEmail)) {
       throw new Error(
         `Test mode is enabled, but email address is not a valid resend test address. Did you want to set testMode: false in your ResendOptions?`,
       );
@@ -161,7 +161,7 @@ export const sendEmail = mutation({
 export const createManualEmail = mutation({
   args: {
     from: v.string(),
-    to: v.string(),
+    to: v.union(v.array(v.string()), v.string()),
     subject: v.string(),
     replyTo: v.optional(v.array(v.string())),
     headers: v.optional(
@@ -177,7 +177,7 @@ export const createManualEmail = mutation({
   handler: async (ctx, args) => {
     const emailId = await ctx.db.insert("emails", {
       from: args.from,
-      to: args.to,
+      to: Array.isArray(args.to) ? args.to : [args.to],
       subject: args.subject,
       headers: args.headers,
       segment: Infinity,

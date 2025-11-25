@@ -259,7 +259,14 @@ export class Resend {
             replyTo,
             headers,
           }
-        : fromOrOptions;
+        : {
+            from: fromOrOptions.from,
+            to: fromOrOptions.to,
+
+            subject: fromOrOptions.subject,
+            html: fromOrOptions.html,
+            text: fromOrOptions.text,
+          };
 
     if (this.config.apiKey === "") throw new Error("API key is not set");
 

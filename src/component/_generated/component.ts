@@ -53,7 +53,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           headers?: Array<{ name: string; value: string }>;
           replyTo?: Array<string>;
           subject: string;
-          to: string;
+          to: Array<string> | string;
         },
         string,
         Name
