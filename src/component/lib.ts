@@ -161,8 +161,12 @@ export const sendEmail = mutation({
       headers: args.headers,
       segment,
       status: "waiting",
-      complained: false,
-      opened: false,
+      hasBounced: false,
+      hasComplained: false,
+      hasFailed: false,
+      hasDeliveryDelayed: false,
+      hasOpened: false,
+      hasClicked: false,
       replyTo: args.replyTo ?? [],
       finalizedAt: FINALIZED_EPOCH,
     });
@@ -197,8 +201,12 @@ export const createManualEmail = mutation({
       headers: args.headers,
       segment: Infinity,
       status: "queued",
-      complained: false,
-      opened: false,
+      hasBounced: false,
+      hasComplained: false,
+      hasFailed: false,
+      hasDeliveryDelayed: false,
+      hasOpened: false,
+      hasClicked: false,
       replyTo: args.replyTo ?? [],
       finalizedAt: FINALIZED_EPOCH,
     });
@@ -259,8 +267,12 @@ export const getStatus = query({
     v.object({
       status: vStatus,
       errorMessage: v.union(v.string(), v.null()),
-      complained: v.boolean(),
-      opened: v.boolean(),
+      hasBounced: v.boolean(),
+      hasComplained: v.boolean(),
+      hasFailed: v.boolean(),
+      hasDeliveryDelayed: v.boolean(),
+      hasOpened: v.boolean(),
+      hasClicked: v.boolean(),
     }),
     v.null(),
   ),
@@ -272,8 +284,12 @@ export const getStatus = query({
     return {
       status: email.status,
       errorMessage: email.errorMessage ?? null,
-      complained: email.complained,
-      opened: email.opened,
+      hasBounced: email.hasBounced,
+      hasComplained: email.hasComplained,
+      hasFailed: email.hasFailed,
+      hasDeliveryDelayed: email.hasDeliveryDelayed,
+      hasOpened: email.hasOpened,
+      hasClicked: email.hasClicked,
     };
   },
 });
@@ -694,6 +710,7 @@ export const getEmailByResendId = internalQuery({
 });
 
 // Compute the updated email record for a given webhook event without writing it.
+// Only returns an update if there's a state change to reduce write contention.
 function computeEmailUpdateFromEvent(
   email: Doc<"emails">,
   event: EmailEvent,
@@ -718,15 +735,27 @@ function computeEmailUpdateFromEvent(
 
   // NOOP -- we do this automatically when we send the email.
   if (event.type == "email.sent") return null;
-  // Clicked doesn't affect status
-  if (event.type == "email.clicked") return null;
+
+  if (event.type == "email.clicked") {
+    // Only mutate if this is the first click
+    if (email.hasClicked) return null;
+    return {
+      ...email,
+      hasClicked: true,
+    };
+  }
 
   if (event.type == "email.failed") {
+    // Only mutate if this is the first failure OR status changes
+    const statusWillChange = canUpgradeTo("failed");
+    if (!statusWillChange && email.hasFailed) {
+      return null; // No state change
+    }
     const updated: Doc<"emails"> = {
       ...email,
-      failedCount: (email.failedCount ?? 0) + 1,
+      hasFailed: true,
     };
-    if (canUpgradeTo("failed")) {
+    if (statusWillChange) {
       updated.status = "failed";
       updated.finalizedAt = Date.now();
     }
@@ -743,12 +772,17 @@ function computeEmailUpdateFromEvent(
   }
 
   if (event.type == "email.bounced") {
+    // Only mutate if this is the first bounce OR status changes
+    const statusWillChange = canUpgradeTo("bounced");
+    if (!statusWillChange && email.hasBounced) {
+      return null; // No state change
+    }
     const updated: Doc<"emails"> = {
       ...email,
       errorMessage: event.data.bounce?.message,
-      bounceCount: (email.bounceCount ?? 0) + 1,
+      hasBounced: true,
     };
-    if (canUpgradeTo("bounced")) {
+    if (statusWillChange) {
       updated.status = "bounced";
       updated.finalizedAt = Date.now();
     }
@@ -756,31 +790,38 @@ function computeEmailUpdateFromEvent(
   }
 
   if (event.type == "email.delivery_delayed") {
+    // Only mutate if this is the first delay OR status changes
+    const statusWillChange = canUpgradeTo("delivery_delayed");
+    if (!statusWillChange && email.hasDeliveryDelayed) {
+      return null; // No state change
+    }
     const updated: Doc<"emails"> = {
       ...email,
-      deliveryDelayedCount: (email.deliveryDelayedCount ?? 0) + 1,
+      hasDeliveryDelayed: true,
     };
-    if (canUpgradeTo("delivery_delayed")) {
+    if (statusWillChange) {
       updated.status = "delivery_delayed";
     }
     return updated;
   }
 
   if (event.type == "email.complained") {
+    // Only mutate if this is the first complaint
+    if (email.hasComplained) return null;
     return {
       ...email,
-      complained: true,
-      complaintCount: (email.complaintCount ?? 0) + 1,
+      hasComplained: true,
       finalizedAt:
         email.finalizedAt === FINALIZED_EPOCH ? Date.now() : email.finalizedAt,
     };
   }
 
   if (event.type == "email.opened") {
-    if (email.opened) return null;
+    // Only mutate if this is the first open
+    if (email.hasOpened) return null;
     return {
       ...email,
-      opened: true,
+      hasOpened: true,
     };
   }
 
@@ -843,77 +884,17 @@ export const handleEmailEvent = mutation({
             : event.type === "email.failed"
               ? event.data.failed?.reason
               : undefined,
-        aggregated: false,
       });
     }
 
-    // Schedule aggregation to reduce write contention; runs shortly after bursts of events
-    await ctx.scheduler.runAfter(1000, internal.lib.aggregateEmailEvents, {
-      emailId: email._id,
-    });
+    // Apply the event directly to update email state if needed
+    const updated = computeEmailUpdateFromEvent(email, event);
+    if (updated) {
+      await ctx.db.replace(email._id, updated);
+    }
 
     // Keep callback behavior (invoked with current email state and raw event)
     await enqueueCallbackIfExists(ctx, email, event);
-  },
-});
-
-// Aggregate unprocessed delivery events for a single email to reduce write contention
-export const aggregateEmailEvents = internalMutation({
-  args: { emailId: v.id("emails") },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    const email = await ctx.db.get(args.emailId);
-    if (!email) return;
-
-    // Fetch unaggregated events for this email
-    const events = await ctx.db
-      .query("deliveryEvents")
-      .withIndex("by_emailId_aggregated", (q) =>
-        q.eq("emailId", args.emailId).eq("aggregated", false)
-      )
-      .collect();
-
-    if (events.length === 0) return;
-
-    // Apply events in chronological order
-    events.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-
-    let nextEmail: Doc<"emails"> = email;
-    let changed = false;
-
-    for (const e of events) {
-      // Reconstruct a minimal EmailEvent compatible with our update logic
-      const syntheticEvent = {
-        type: e.eventType as EmailEvent["type"],
-        created_at: e.createdAt,
-        data: {
-          email_id: email.resendId ?? "",
-          bounce:
-            e.eventType === "email.bounced" && e.message
-              ? { message: e.message, subType: "general", type: "hard" }
-              : undefined,
-          failed:
-            e.eventType === "email.failed" && e.message
-              ? { reason: e.message }
-              : undefined,
-        },
-      } as unknown as EmailEvent;
-
-      const updated = computeEmailUpdateFromEvent(nextEmail, syntheticEvent);
-      if (updated) {
-        nextEmail = updated;
-        changed = true;
-      }
-    }
-
-    if (changed) {
-      await ctx.db.replace(email._id, nextEmail);
-    }
-
-    // Mark processed events as aggregated
-    for (const e of events) {
-      await ctx.db.patch(e._id, { aggregated: true });
-    }
   },
 });
 

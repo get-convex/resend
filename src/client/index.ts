@@ -131,14 +131,34 @@ export type EmailStatus = {
   errorMessage: string | null;
 
   /**
+   * Whether the email bounced.
+   */
+  hasBounced: boolean;
+
+  /**
    * Whether the email was marked as spam. This is only set on emails which are delivered.
    */
-  complained: boolean;
+  hasComplained: boolean;
+
+  /**
+   * Whether the email failed to send.
+   */
+  hasFailed: boolean;
+
+  /**
+   * Whether the email delivery was delayed.
+   */
+  hasDeliveryDelayed: boolean;
 
   /**
    * If you're using open tracking, did Resend detect that the email was opened?
    */
-  opened: boolean;
+  hasOpened: boolean;
+
+  /**
+   * If you're using click tracking, did Resend detect that a link was clicked?
+   */
+  hasClicked: boolean;
 };
 
 export type SendEmailOptions = {
@@ -368,8 +388,12 @@ export class Resend {
     headers?: { name: string; value: string }[];
     status: Status;
     errorMessage?: string;
-    complained: boolean;
-    opened: boolean;
+    hasBounced: boolean;
+    hasComplained: boolean;
+    hasFailed: boolean;
+    hasDeliveryDelayed: boolean;
+    hasOpened: boolean;
+    hasClicked: boolean;
     resendId?: string;
     finalizedAt: number;
     createdAt: number;

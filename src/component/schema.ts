@@ -26,12 +26,11 @@ export default defineSchema({
       v.literal("email.failed"),
       v.literal("email.delivery_delayed"),
       v.literal("email.opened"),
-      v.literal("email.clicked")
+      v.literal("email.clicked"),
     ),
     createdAt: v.string(),
     message: v.optional(v.string()),
-    aggregated: v.optional(v.boolean()),
-  }).index("by_emailId_aggregated", ["emailId", "aggregated"]),
+  }).index("by_emailId", ["emailId"]),
   emails: defineTable({
     from: v.string(),
     to: v.union(v.array(v.string()), v.string()),
@@ -51,15 +50,15 @@ export default defineSchema({
     ),
     status: vStatus,
     errorMessage: v.optional(v.string()),
-    complained: v.boolean(),
-    opened: v.boolean(),
+    hasBounced: v.boolean(),
+    hasComplained: v.boolean(),
+    hasFailed: v.boolean(),
+    hasDeliveryDelayed: v.boolean(),
+    hasOpened: v.boolean(),
+    hasClicked: v.boolean(),
     resendId: v.optional(v.string()),
     segment: v.number(),
     finalizedAt: v.number(),
-    bounceCount: v.optional(v.number()),
-    complaintCount: v.optional(v.number()),
-    failedCount: v.optional(v.number()),
-    deliveryDelayedCount: v.optional(v.number()),
   })
     .index("by_status_segment", ["status", "segment"])
     .index("by_resendId", ["resendId"])
