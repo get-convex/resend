@@ -30,7 +30,7 @@ export default defineSchema({
     ),
     createdAt: v.string(),
     message: v.optional(v.string()),
-  }).index("by_emailId", ["emailId"]),
+  }).index("by_emailId_eventType", ["emailId", "eventType"]),
   emails: defineTable({
     from: v.string(),
     to: v.union(v.array(v.string()), v.string()),
