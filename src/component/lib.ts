@@ -24,12 +24,7 @@ import { isDeepEqual } from "remeda";
 import schema from "./schema.js";
 import { omit } from "convex-helpers";
 import { parse } from "convex-helpers/validators";
-import {
-  assertExhaustive,
-  attemptToParse,
-  iife,
-  isValidResendTestEmail,
-} from "./utils.js";
+import { assertExhaustive, attemptToParse } from "./utils.js";
 
 // Move some of these to options? TODO
 const SEGMENT_MS = 125;
@@ -698,6 +693,106 @@ export const getEmailByResendId = internalQuery({
   },
 });
 
+// Compute the updated email record for a given webhook event without writing it.
+function computeEmailUpdateFromEvent(
+  email: Doc<"emails">,
+  event: EmailEvent,
+): Doc<"emails"> | null {
+  // Once complained, we freeze further status updates (but still record deliveryEvents elsewhere)
+  const complainedAlready = email.complained === true;
+
+  // Define precedence for statuses; only allow upgrades
+  const statusRank: Record<Doc<"emails">["status"], number> = {
+    waiting: 0,
+    queued: 1,
+    sent: 2,
+    delivery_delayed: 3,
+    delivered: 4,
+    bounced: 5,
+    failed: 5,
+    cancelled: 100, // treat cancelled as terminal
+  };
+
+  const currentRank = statusRank[email.status];
+  const canUpgradeTo = (next: Doc<"emails">["status"]) => {
+    if (email.status === "cancelled") return false;
+    if (complainedAlready) return false;
+    return statusRank[next] > currentRank;
+  };
+
+  // NOOP -- we do this automatically when we send the email.
+  if (event.type == "email.sent") return null;
+  // Clicked doesn't affect status
+  if (event.type == "email.clicked") return null;
+
+  if (event.type == "email.failed") {
+    const updated: Doc<"emails"> = {
+      ...email,
+      failedCount: (email.failedCount ?? 0) + 1,
+    };
+    if (canUpgradeTo("failed")) {
+      updated.status = "failed";
+      updated.finalizedAt = Date.now();
+    }
+    return updated;
+  }
+
+  if (event.type == "email.delivered") {
+    if (!canUpgradeTo("delivered")) return null;
+    return {
+      ...email,
+      status: "delivered",
+      finalizedAt: Date.now(),
+    };
+  }
+
+  if (event.type == "email.bounced") {
+    const updated: Doc<"emails"> = {
+      ...email,
+      errorMessage: event.data.bounce?.message,
+      bounceCount: (email.bounceCount ?? 0) + 1,
+    };
+    if (canUpgradeTo("bounced")) {
+      updated.status = "bounced";
+      updated.finalizedAt = Date.now();
+    }
+    return updated;
+  }
+
+  if (event.type == "email.delivery_delayed") {
+    const updated: Doc<"emails"> = {
+      ...email,
+      deliveryDelayedCount: (email.deliveryDelayedCount ?? 0) + 1,
+    };
+    if (canUpgradeTo("delivery_delayed")) {
+      updated.status = "delivery_delayed";
+    }
+    return updated;
+  }
+
+  if (event.type == "email.complained") {
+    return {
+      ...email,
+      complained: true,
+      complaintCount: (email.complaintCount ?? 0) + 1,
+      finalizedAt:
+        email.finalizedAt === FINALIZED_EPOCH ? Date.now() : email.finalizedAt,
+    };
+  }
+
+  if (event.type == "email.opened") {
+    if (complainedAlready) return null;
+    if (email.opened) return null;
+    return {
+      ...email,
+      opened: true,
+    };
+  }
+
+  assertExhaustive(event);
+  return null;
+}
+
 // Handle a webhook event. Mostly we just update the email status.
 export const handleEmailEvent = mutation({
   args: {
@@ -755,98 +850,7 @@ export const handleEmailEvent = mutation({
     }
 
     // Returns the changed email or null if not changed
-    const changed = iife((): Doc<"emails"> | null => {
-      // NOOP -- we do this automatically when we send the email.
-      if (event.type == "email.sent") return null;
-
-      // These we dont do anything with
-      if (event.type == "email.clicked") return null;
-
-      // Once complained, we freeze further status updates (but still record deliveryEvents above)
-      const complainedAlready = email.complained === true;
-
-      // Define precedence for statuses; only allow upgrades
-      const statusRank: Record<Doc<"emails">["status"], number> = {
-        waiting: 0,
-        queued: 1,
-        sent: 2,
-        delivery_delayed: 3,
-        delivered: 4,
-        bounced: 5,
-        failed: 5,
-        cancelled: 100, // treat cancelled as terminal
-      };
-
-      const currentRank = statusRank[email.status];
-      const canUpgradeTo = (next: Doc<"emails">["status"]) => {
-        if (email.status === "cancelled") return false;
-        if (complainedAlready) return false;
-        return statusRank[next] > currentRank;
-      };
-
-      if (event.type == "email.failed")
-        return canUpgradeTo("failed")
-          ? {
-              ...email,
-              status: "failed",
-              finalizedAt: Date.now(),
-              failedCount: (email.failedCount ?? 0) + 1,
-            }
-          : null;
-
-      if (event.type == "email.delivered")
-        return canUpgradeTo("delivered")
-          ? {
-              ...email,
-              status: "delivered",
-              finalizedAt: Date.now(),
-            }
-          : null;
-
-      if (event.type == "email.bounced")
-        return canUpgradeTo("bounced")
-          ? {
-              ...email,
-              status: "bounced",
-              finalizedAt: Date.now(),
-              errorMessage: event.data.bounce?.message,
-              bounceCount: (email.bounceCount ?? 0) + 1,
-            }
-          : null;
-
-      if (event.type == "email.delivery_delayed")
-        return canUpgradeTo("delivery_delayed")
-          ? {
-              ...email,
-              status: "delivery_delayed",
-              deliveryDelayedCount: (email.deliveryDelayedCount ?? 0) + 1,
-            }
-          : null;
-
-      if (event.type == "email.complained")
-        return {
-          ...email,
-          complained: true,
-          complaintCount: (email.complaintCount ?? 0) + 1,
-          // once complained, freeze the record for cleanup eligibility
-          finalizedAt:
-            email.finalizedAt === FINALIZED_EPOCH
-              ? Date.now()
-              : email.finalizedAt,
-        };
-
-      if (event.type == "email.opened")
-        return complainedAlready
-          ? null
-          : {
-              ...email,
-              opened: true,
-            };
-
-      assertExhaustive(event);
-
-      return null;
-    });
+    const changed = computeEmailUpdateFromEvent(email, event);
 
     if (changed) await ctx.db.replace(email._id, changed);
 
