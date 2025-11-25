@@ -41,6 +41,16 @@ describe("handleEmailEvent", () => {
     expect(updatedEmail.status).toBe("delivered");
     expect(updatedEmail.finalizedAt).toBeLessThan(Number.MAX_SAFE_INTEGER);
     expect(updatedEmail.finalizedAt).toBeGreaterThan(Date.now() - 10000); // Within last 10 seconds
+    // deliveryEvents entry created
+    const events = await t.run(async (ctx) =>
+      ctx.db
+        .query("deliveryEvents")
+        .withIndex("by_emailId", (q) => q.eq("emailId", email._id))
+        .collect()
+    );
+    expect(events.length).toBe(1);
+    expect(events[0].eventType).toBe("email.delivered");
+    expect(events[0].resendId).toBe("test-resend-id-123");
   });
 
   it("updates email for complained event", async () => {
@@ -52,6 +62,15 @@ describe("handleEmailEvent", () => {
     const updatedEmail = await getEmail();
     expect(updatedEmail.status).toBe("sent");
     expect(updatedEmail.complained).toBe(true);
+    // deliveryEvents entry created
+    const events = await t.run(async (ctx) =>
+      ctx.db
+        .query("deliveryEvents")
+        .withIndex("by_emailId", (q) => q.eq("emailId", email._id))
+        .collect()
+    );
+    expect(events.length).toBe(1);
+    expect(events[0].eventType).toBe("email.complained");
   });
 
   it("updates email for bounced event", async () => {
@@ -66,6 +85,18 @@ describe("handleEmailEvent", () => {
     expect(updatedEmail.finalizedAt).toBeGreaterThan(Date.now() - 10000); // Within last 10 seconds
     expect(updatedEmail.errorMessage).toBe(
       "The email bounced due to invalid recipient",
+    );
+    // deliveryEvents entry created
+    const events = await t.run(async (ctx) =>
+      ctx.db
+        .query("deliveryEvents")
+        .withIndex("by_emailId", (q) => q.eq("emailId", email._id))
+        .collect()
+    );
+    expect(events.length).toBe(1);
+    expect(events[0].eventType).toBe("email.bounced");
+    expect(events[0].message).toBe(
+      "The email bounced due to invalid recipient"
     );
   });
 

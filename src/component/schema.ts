@@ -15,6 +15,22 @@ export default defineSchema({
   lastOptions: defineTable({
     options: vOptions,
   }),
+  deliveryEvents: defineTable({
+    emailId: v.id("emails"),
+    resendId: v.string(),
+    eventType: v.union(
+      v.literal("email.sent"),
+      v.literal("email.delivered"),
+      v.literal("email.bounced"),
+      v.literal("email.complained"),
+      v.literal("email.failed"),
+      v.literal("email.delivery_delayed")
+    ),
+    createdAt: v.string(),
+    message: v.optional(v.string()),
+  })
+    .index("by_emailId", ["emailId"])
+    .index("by_resendId", ["resendId"]),
   emails: defineTable({
     from: v.string(),
     to: v.union(v.array(v.string()), v.string()),

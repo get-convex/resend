@@ -729,6 +729,31 @@ export const handleEmailEvent = mutation({
       return;
     }
 
+    // Record delivery-related events for auditing/analytics
+    const acceptedTypes = [
+      "email.sent",
+      "email.delivered",
+      "email.bounced",
+      "email.failed",
+      "email.delivery_delayed",
+      "email.complained",
+    ] as const;
+
+    if (acceptedTypes.includes(event.type as (typeof acceptedTypes)[number])) {
+      await ctx.db.insert("deliveryEvents", {
+        emailId: email._id,
+        resendId: event.data.email_id,
+        eventType: event.type as (typeof acceptedTypes)[number],
+        createdAt: event.created_at,
+        message:
+          event.type === "email.bounced"
+            ? event.data.bounce?.message
+            : event.type === "email.failed"
+              ? event.data.failed?.reason
+              : undefined,
+      });
+    }
+
     // Returns the changed email or null if not changed
     const changed = iife((): Doc<"emails"> | null => {
       // NOOP -- we do this automatically when we send the email.
