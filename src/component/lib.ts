@@ -824,7 +824,7 @@ export const handleEmailEvent = mutation({
       return;
     }
 
-    // Record delivery-related events for auditing/analytics
+    // Record delivery-related events for auditing/analytics (now including opened/clicked)
     const acceptedTypes = [
       "email.sent",
       "email.delivered",
@@ -832,6 +832,8 @@ export const handleEmailEvent = mutation({
       "email.failed",
       "email.delivery_delayed",
       "email.complained",
+      "email.opened",
+      "email.clicked",
     ] as const;
 
     if (acceptedTypes.includes(event.type as (typeof acceptedTypes)[number])) {
@@ -846,15 +848,77 @@ export const handleEmailEvent = mutation({
             : event.type === "email.failed"
               ? event.data.failed?.reason
               : undefined,
+        aggregated: false,
       });
     }
 
-    // Returns the changed email or null if not changed
-    const changed = computeEmailUpdateFromEvent(email, event);
+    // Schedule aggregation to reduce write contention; runs shortly after bursts of events
+    await ctx.scheduler.runAfter(1000, internal.lib.aggregateEmailEvents, {
+      emailId: email._id,
+    });
 
-    if (changed) await ctx.db.replace(email._id, changed);
+    // Keep callback behavior (invoked with current email state and raw event)
+    await enqueueCallbackIfExists(ctx, email, event);
+  },
+});
 
-    await enqueueCallbackIfExists(ctx, changed ?? email, event);
+// Aggregate unprocessed delivery events for a single email to reduce write contention
+export const aggregateEmailEvents = internalMutation({
+  args: { emailId: v.id("emails") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const email = await ctx.db.get(args.emailId);
+    if (!email) return;
+
+    // Fetch unaggregated events for this email
+    const events = await ctx.db
+      .query("deliveryEvents")
+      .withIndex("by_emailId_aggregated", (q) =>
+        q.eq("emailId", args.emailId).eq("aggregated", false)
+      )
+      .collect();
+
+    if (events.length === 0) return;
+
+    // Apply events in chronological order
+    events.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+
+    let nextEmail: Doc<"emails"> = email;
+    let changed = false;
+
+    for (const e of events) {
+      // Reconstruct a minimal EmailEvent compatible with our update logic
+      const syntheticEvent = {
+        type: e.eventType as EmailEvent["type"],
+        created_at: e.createdAt,
+        data: {
+          email_id: email.resendId ?? "",
+          bounce:
+            e.eventType === "email.bounced" && e.message
+              ? { message: e.message, subType: "general", type: "hard" }
+              : undefined,
+          failed:
+            e.eventType === "email.failed" && e.message
+              ? { reason: e.message }
+              : undefined,
+        },
+      } as unknown as EmailEvent;
+
+      const updated = computeEmailUpdateFromEvent(nextEmail, syntheticEvent);
+      if (updated) {
+        nextEmail = updated;
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      await ctx.db.replace(email._id, nextEmail);
+    }
+
+    // Mark processed events as aggregated
+    for (const e of events) {
+      await ctx.db.patch(e._id, { aggregated: true });
+    }
   },
 });
 
