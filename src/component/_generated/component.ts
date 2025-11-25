@@ -63,6 +63,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "internal",
         { emailId: string },
         {
+          bcc?: Array<string>;
+          cc?: Array<string>;
           complained: boolean;
           createdAt: number;
           errorMessage?: string;
@@ -120,6 +122,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "mutation",
         "internal",
         {
+          bcc?: Array<string>;
+          cc?: Array<string>;
           from: string;
           headers?: Array<{ name: string; value: string }>;
           html?: string;
