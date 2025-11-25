@@ -762,49 +762,86 @@ export const handleEmailEvent = mutation({
       // These we dont do anything with
       if (event.type == "email.clicked") return null;
 
+      // Once complained, we freeze further status updates (but still record deliveryEvents above)
+      const complainedAlready = email.complained === true;
+
+      // Define precedence for statuses; only allow upgrades
+      const statusRank: Record<Doc<"emails">["status"], number> = {
+        waiting: 0,
+        queued: 1,
+        sent: 2,
+        delivery_delayed: 3,
+        delivered: 4,
+        bounced: 5,
+        failed: 5,
+        cancelled: 100, // treat cancelled as terminal
+      };
+
+      const currentRank = statusRank[email.status];
+      const canUpgradeTo = (next: Doc<"emails">["status"]) => {
+        if (email.status === "cancelled") return false;
+        if (complainedAlready) return false;
+        return statusRank[next] > currentRank;
+      };
+
       if (event.type == "email.failed")
-        return {
-          ...email,
-          status: "failed",
-          finalizedAt: Date.now(),
-          failedCount: (email.failedCount ?? 0) + 1,
-        };
+        return canUpgradeTo("failed")
+          ? {
+              ...email,
+              status: "failed",
+              finalizedAt: Date.now(),
+              failedCount: (email.failedCount ?? 0) + 1,
+            }
+          : null;
 
       if (event.type == "email.delivered")
-        return {
-          ...email,
-          status: "delivered",
-          finalizedAt: Date.now(),
-        };
+        return canUpgradeTo("delivered")
+          ? {
+              ...email,
+              status: "delivered",
+              finalizedAt: Date.now(),
+            }
+          : null;
 
       if (event.type == "email.bounced")
-        return {
-          ...email,
-          status: "bounced",
-          finalizedAt: Date.now(),
-          errorMessage: event.data.bounce?.message,
-          bounceCount: (email.bounceCount ?? 0) + 1,
-        };
+        return canUpgradeTo("bounced")
+          ? {
+              ...email,
+              status: "bounced",
+              finalizedAt: Date.now(),
+              errorMessage: event.data.bounce?.message,
+              bounceCount: (email.bounceCount ?? 0) + 1,
+            }
+          : null;
 
       if (event.type == "email.delivery_delayed")
-        return {
-          ...email,
-          status: "delivery_delayed",
-          deliveryDelayedCount: (email.deliveryDelayedCount ?? 0) + 1,
-        };
+        return canUpgradeTo("delivery_delayed")
+          ? {
+              ...email,
+              status: "delivery_delayed",
+              deliveryDelayedCount: (email.deliveryDelayedCount ?? 0) + 1,
+            }
+          : null;
 
       if (event.type == "email.complained")
         return {
           ...email,
           complained: true,
           complaintCount: (email.complaintCount ?? 0) + 1,
+          // once complained, freeze the record for cleanup eligibility
+          finalizedAt:
+            email.finalizedAt === FINALIZED_EPOCH
+              ? Date.now()
+              : email.finalizedAt,
         };
 
       if (event.type == "email.opened")
-        return {
-          ...email,
-          opened: true,
-        };
+        return complainedAlready
+          ? null
+          : {
+              ...email,
+              opened: true,
+            };
 
       assertExhaustive(event);
 
