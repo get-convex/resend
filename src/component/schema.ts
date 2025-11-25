@@ -55,6 +55,10 @@ export default defineSchema({
     resendId: v.optional(v.string()),
     segment: v.number(),
     finalizedAt: v.number(),
+    bounceCount: v.optional(v.number()),
+    complaintCount: v.optional(v.number()),
+    failedCount: v.optional(v.number()),
+    deliveryDelayedCount: v.optional(v.number()),
   })
     .index("by_status_segment", ["status", "segment"])
     .index("by_resendId", ["resendId"])
