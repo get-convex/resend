@@ -161,12 +161,12 @@ export const sendEmail = mutation({
       headers: args.headers,
       segment,
       status: "waiting",
-      hasBounced: false,
-      hasComplained: false,
-      hasFailed: false,
-      hasDeliveryDelayed: false,
-      hasOpened: false,
-      hasClicked: false,
+      bounced: false,
+      complained: false,
+      failed: false,
+      deliveryDelayed: false,
+      opened: false,
+      clicked: false,
       replyTo: args.replyTo ?? [],
       finalizedAt: FINALIZED_EPOCH,
     });
@@ -201,12 +201,12 @@ export const createManualEmail = mutation({
       headers: args.headers,
       segment: Infinity,
       status: "queued",
-      hasBounced: false,
-      hasComplained: false,
-      hasFailed: false,
-      hasDeliveryDelayed: false,
-      hasOpened: false,
-      hasClicked: false,
+      bounced: false,
+      complained: false,
+      failed: false,
+      deliveryDelayed: false,
+      opened: false,
+      clicked: false,
       replyTo: args.replyTo ?? [],
       finalizedAt: FINALIZED_EPOCH,
     });
@@ -267,12 +267,12 @@ export const getStatus = query({
     v.object({
       status: vStatus,
       errorMessage: v.union(v.string(), v.null()),
-      hasBounced: v.boolean(),
-      hasComplained: v.boolean(),
-      hasFailed: v.boolean(),
-      hasDeliveryDelayed: v.boolean(),
-      hasOpened: v.boolean(),
-      hasClicked: v.boolean(),
+      bounced: v.boolean(),
+      complained: v.boolean(),
+      failed: v.boolean(),
+      deliveryDelayed: v.boolean(),
+      opened: v.boolean(),
+      clicked: v.boolean(),
     }),
     v.null(),
   ),
@@ -284,12 +284,12 @@ export const getStatus = query({
     return {
       status: email.status,
       errorMessage: email.errorMessage ?? null,
-      hasBounced: email.hasBounced,
-      hasComplained: email.hasComplained,
-      hasFailed: email.hasFailed,
-      hasDeliveryDelayed: email.hasDeliveryDelayed,
-      hasOpened: email.hasOpened,
-      hasClicked: email.hasClicked,
+      bounced: email.bounced,
+      complained: email.complained,
+      failed: email.failed,
+      deliveryDelayed: email.deliveryDelayed,
+      opened: email.opened,
+      clicked: email.clicked,
     };
   },
 });
@@ -738,22 +738,22 @@ function computeEmailUpdateFromEvent(
 
   if (event.type == "email.clicked") {
     // Only mutate if this is the first click
-    if (email.hasClicked) return null;
+    if (email.clicked) return null;
     return {
       ...email,
-      hasClicked: true,
+      clicked: true,
     };
   }
 
   if (event.type == "email.failed") {
     // Only mutate if this is the first failure OR status changes
     const statusWillChange = canUpgradeTo("failed");
-    if (!statusWillChange && email.hasFailed) {
+    if (!statusWillChange && email.failed) {
       return null; // No state change
     }
     const updated: Doc<"emails"> = {
       ...email,
-      hasFailed: true,
+      failed: true,
     };
     if (statusWillChange) {
       updated.status = "failed";
@@ -774,13 +774,13 @@ function computeEmailUpdateFromEvent(
   if (event.type == "email.bounced") {
     // Only mutate if this is the first bounce OR status changes
     const statusWillChange = canUpgradeTo("bounced");
-    if (!statusWillChange && email.hasBounced) {
+    if (!statusWillChange && email.bounced) {
       return null; // No state change
     }
     const updated: Doc<"emails"> = {
       ...email,
       errorMessage: event.data.bounce?.message,
-      hasBounced: true,
+      bounced: true,
     };
     if (statusWillChange) {
       updated.status = "bounced";
@@ -792,12 +792,12 @@ function computeEmailUpdateFromEvent(
   if (event.type == "email.delivery_delayed") {
     // Only mutate if this is the first delay OR status changes
     const statusWillChange = canUpgradeTo("delivery_delayed");
-    if (!statusWillChange && email.hasDeliveryDelayed) {
+    if (!statusWillChange && email.deliveryDelayed) {
       return null; // No state change
     }
     const updated: Doc<"emails"> = {
       ...email,
-      hasDeliveryDelayed: true,
+      deliveryDelayed: true,
     };
     if (statusWillChange) {
       updated.status = "delivery_delayed";
@@ -807,10 +807,10 @@ function computeEmailUpdateFromEvent(
 
   if (event.type == "email.complained") {
     // Only mutate if this is the first complaint
-    if (email.hasComplained) return null;
+    if (email.complained) return null;
     return {
       ...email,
-      hasComplained: true,
+      complained: true,
       finalizedAt:
         email.finalizedAt === FINALIZED_EPOCH ? Date.now() : email.finalizedAt,
     };
@@ -818,10 +818,10 @@ function computeEmailUpdateFromEvent(
 
   if (event.type == "email.opened") {
     // Only mutate if this is the first open
-    if (email.hasOpened) return null;
+    if (email.opened) return null;
     return {
       ...email,
-      hasOpened: true,
+      opened: true,
     };
   }
 

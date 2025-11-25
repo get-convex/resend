@@ -62,7 +62,7 @@ describe("handleEmailEvent", () => {
 
     const updatedEmail = await getEmail();
     expect(updatedEmail.status).toBe("sent");
-    expect(updatedEmail.hasComplained).toBe(true);
+    expect(updatedEmail.complained).toBe(true);
     // deliveryEvents entry created
     const events = await t.run(async (ctx) =>
       ctx.db
@@ -114,14 +114,14 @@ describe("handleEmailEvent", () => {
 
   it("updates email for opened event", async () => {
     expect(email.status).toBe("sent");
-    expect(email.hasOpened).toBe(false);
+    expect(email.opened).toBe(false);
     event = createTestEventOfType("email.opened");
 
     await exec();
 
     const updatedEmail = await getEmail();
     expect(updatedEmail.status).toBe("sent");
-    expect(updatedEmail.hasOpened).toBe(true);
+    expect(updatedEmail.opened).toBe(true);
   });
 
   it("does not update email for sent event", async () => {
@@ -133,8 +133,8 @@ describe("handleEmailEvent", () => {
     const updatedEmail = await getEmail();
     expect(updatedEmail.status).toBe("sent");
     expect(updatedEmail.finalizedAt).toBe(Number.MAX_SAFE_INTEGER); // Should remain unchanged
-    expect(updatedEmail.hasComplained).toBe(false); // Should remain unchanged
-    expect(updatedEmail.hasOpened).toBe(false); // Should remain unchanged
+    expect(updatedEmail.complained).toBe(false); // Should remain unchanged
+    expect(updatedEmail.opened).toBe(false); // Should remain unchanged
   });
 
   it("updates email for clicked event", async () => {
@@ -146,9 +146,9 @@ describe("handleEmailEvent", () => {
     const updatedEmail = await getEmail();
     expect(updatedEmail.status).toBe("sent");
     expect(updatedEmail.finalizedAt).toBe(Number.MAX_SAFE_INTEGER); // Should remain unchanged
-    expect(updatedEmail.hasClicked).toBe(true); // Now tracks clicks
-    expect(updatedEmail.hasComplained).toBe(false); // Should remain unchanged
-    expect(updatedEmail.hasOpened).toBe(false); // Should remain unchanged
+    expect(updatedEmail.clicked).toBe(true); // Now tracks clicks
+    expect(updatedEmail.complained).toBe(false); // Should remain unchanged
+    expect(updatedEmail.opened).toBe(false); // Should remain unchanged
   });
 
   it("updates email for failed event and changes status", async () => {
@@ -159,10 +159,10 @@ describe("handleEmailEvent", () => {
 
     const updatedEmail = await getEmail();
     expect(updatedEmail.status).toBe("failed"); // Status changes (failed has higher priority than sent)
-    expect(updatedEmail.hasFailed).toBe(true); // Flag is set
+    expect(updatedEmail.failed).toBe(true); // Flag is set
     expect(updatedEmail.finalizedAt).toBeLessThan(Number.MAX_SAFE_INTEGER); // Should be finalized
-    expect(updatedEmail.hasComplained).toBe(false); // Should remain unchanged
-    expect(updatedEmail.hasOpened).toBe(false); // Should remain unchanged
+    expect(updatedEmail.complained).toBe(false); // Should remain unchanged
+    expect(updatedEmail.opened).toBe(false); // Should remain unchanged
   });
 
   it("gracefully handles invalid event structure - missing type", async () => {
@@ -183,8 +183,8 @@ describe("handleEmailEvent", () => {
     const updatedEmail = await getEmail();
     expect(updatedEmail.status).toBe("sent");
     expect(updatedEmail.finalizedAt).toBe(Number.MAX_SAFE_INTEGER);
-    expect(updatedEmail.hasComplained).toBe(false);
-    expect(updatedEmail.hasOpened).toBe(false);
+    expect(updatedEmail.complained).toBe(false);
+    expect(updatedEmail.opened).toBe(false);
   });
 
   it("gracefully handles invalid event structure - missing data", async () => {
@@ -200,8 +200,8 @@ describe("handleEmailEvent", () => {
     const updatedEmail = await getEmail();
     expect(updatedEmail.status).toBe("sent");
     expect(updatedEmail.finalizedAt).toBe(Number.MAX_SAFE_INTEGER);
-    expect(updatedEmail.hasComplained).toBe(false);
-    expect(updatedEmail.hasOpened).toBe(false);
+    expect(updatedEmail.complained).toBe(false);
+    expect(updatedEmail.opened).toBe(false);
   });
 
   it("gracefully handles completely invalid event", async () => {
@@ -214,8 +214,8 @@ describe("handleEmailEvent", () => {
     const updatedEmail = await getEmail();
     expect(updatedEmail.status).toBe("sent");
     expect(updatedEmail.finalizedAt).toBe(Number.MAX_SAFE_INTEGER);
-    expect(updatedEmail.hasComplained).toBe(false);
-    expect(updatedEmail.hasOpened).toBe(false);
+    expect(updatedEmail.complained).toBe(false);
+    expect(updatedEmail.opened).toBe(false);
   });
 
   it("gracefully handles null event", async () => {
@@ -226,8 +226,8 @@ describe("handleEmailEvent", () => {
     const updatedEmail = await getEmail();
     expect(updatedEmail.status).toBe("sent");
     expect(updatedEmail.finalizedAt).toBe(Number.MAX_SAFE_INTEGER);
-    expect(updatedEmail.hasComplained).toBe(false);
-    expect(updatedEmail.hasOpened).toBe(false);
+    expect(updatedEmail.complained).toBe(false);
+    expect(updatedEmail.opened).toBe(false);
   });
 
   it("gracefully handles empty object event", async () => {
@@ -240,7 +240,7 @@ describe("handleEmailEvent", () => {
     const updatedEmail = await getEmail();
     expect(updatedEmail.status).toBe("sent");
     expect(updatedEmail.finalizedAt).toBe(Number.MAX_SAFE_INTEGER);
-    expect(updatedEmail.hasComplained).toBe(false);
-    expect(updatedEmail.hasOpened).toBe(false);
+    expect(updatedEmail.complained).toBe(false);
+    expect(updatedEmail.opened).toBe(false);
   });
 });

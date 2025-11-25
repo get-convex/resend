@@ -64,19 +64,19 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         { emailId: string },
         {
           bcc?: Array<string>;
+          bounced: boolean;
           cc?: Array<string>;
+          clicked: boolean;
+          complained: boolean;
           createdAt: number;
+          deliveryDelayed: boolean;
           errorMessage?: string;
+          failed: boolean;
           finalizedAt: number;
           from: string;
-          hasBounced: boolean;
-          hasClicked: boolean;
-          hasComplained: boolean;
-          hasDeliveryDelayed: boolean;
-          hasFailed: boolean;
-          hasOpened: boolean;
           headers?: Array<{ name: string; value: string }>;
           html?: string;
+          opened: boolean;
           replyTo: Array<string>;
           resendId?: string;
           segment: number;
@@ -100,13 +100,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "internal",
         { emailId: string },
         {
+          bounced: boolean;
+          clicked: boolean;
+          complained: boolean;
+          deliveryDelayed: boolean;
           errorMessage: string | null;
-          hasBounced: boolean;
-          hasClicked: boolean;
-          hasComplained: boolean;
-          hasDeliveryDelayed: boolean;
-          hasFailed: boolean;
-          hasOpened: boolean;
+          failed: boolean;
+          opened: boolean;
           status:
             | "waiting"
             | "queued"
