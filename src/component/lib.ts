@@ -929,32 +929,44 @@ export const cleanupOldEmails = mutation({
   args: { olderThan: v.optional(v.number()) },
   returns: v.null(),
   handler: async (ctx, args) => {
+    const BATCH_SIZE = 100;
     const olderThan = args.olderThan ?? FINALIZED_EMAIL_RETENTION_MS;
     const oldAndDone = await ctx.db
       .query("emails")
       .withIndex("by_finalizedAt", (q) =>
         q.lt("finalizedAt", Date.now() - olderThan),
       )
-      .take(500);
+      .take(BATCH_SIZE);
     for (const email of oldAndDone) {
-      await ctx.db.delete(email._id);
-      if (email.text) {
-        await ctx.db.delete(email.text);
-      }
-      if (email.html) {
-        await ctx.db.delete(email.html);
-      }
+      await cleanupEmail(ctx, email);
     }
     if (oldAndDone.length > 0) {
       console.log(`Cleaned up ${oldAndDone.length} emails`);
     }
-    if (oldAndDone.length === 500) {
+    if (oldAndDone.length === BATCH_SIZE) {
       await ctx.scheduler.runAfter(0, api.lib.cleanupOldEmails, {
         olderThan,
       });
     }
   },
 });
+
+async function cleanupEmail(ctx: MutationCtx, email: Doc<"emails">) {
+  await ctx.db.delete(email._id);
+  if (email.text) {
+    await ctx.db.delete(email.text);
+  }
+  if (email.html) {
+    await ctx.db.delete(email.html);
+  }
+  const events = await ctx.db
+    .query("deliveryEvents")
+    .withIndex("by_emailId_eventType", (q) => q.eq("emailId", email._id))
+    .collect();
+  for (const event of events) {
+    await ctx.db.delete(event._id);
+  }
+}
 
 // Periodic background job to clean up old emails that have been abandoned.
 // Meaning, even if they're not finalized, we should just get rid of them.
@@ -972,13 +984,7 @@ export const cleanupAbandonedEmails = mutation({
 
     for (const email of oldAndAbandoned) {
       // No webhook to finalize these. We'll just delete them.
-      await ctx.db.delete(email._id);
-      if (email.text) {
-        await ctx.db.delete(email.text);
-      }
-      if (email.html) {
-        await ctx.db.delete(email.html);
-      }
+      await cleanupEmail(ctx, email);
     }
     if (oldAndAbandoned.length > 0) {
       console.log(`Cleaned up ${oldAndAbandoned.length} emails`);
