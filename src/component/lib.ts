@@ -87,6 +87,8 @@ export const sendEmail = mutation({
     html: v.optional(v.string()),
     text: v.optional(v.string()),
     replyTo: v.optional(v.array(v.string())),
+    template: v.optional(v.string()),
+    variables: v.optional(v.record(v.string(), v.string())),
     headers: v.optional(
       v.array(
         v.object({
@@ -106,8 +108,8 @@ export const sendEmail = mutation({
     }
 
     // We require either html or text to be provided. No body = no bueno.
-    if (args.html === undefined && args.text === undefined) {
-      throw new Error("Either html or text must be provided");
+    if (args.html === undefined && args.text === undefined && args.template === undefined) {
+      throw new Error("Either html, text, or template must be provided");
     }
 
     // Store the text/html into separate records to keep things fast and memory low when we work with email batches.
@@ -140,6 +142,8 @@ export const sendEmail = mutation({
       html: htmlContentId,
       text: textContentId,
       headers: args.headers,
+      template: args.template,
+      variables: args.variables,
       segment,
       status: "waiting",
       complained: false,
@@ -607,6 +611,10 @@ async function createResendBatchPayload(
           ]),
         )
       : undefined,
+    template: email.template ? { 
+      id: email.template,
+      variables: email.variables,
+    } : undefined,
   }));
 
   return [emails.map((e) => e._id), JSON.stringify(batchPayload)];
