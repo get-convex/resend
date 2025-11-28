@@ -1,6 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
-import { vOptions, vStatus } from "./shared.js";
+import { vEventType, vOptions, vStatus } from "./shared.js";
 
 export default defineSchema({
   content: defineTable({
@@ -18,16 +18,7 @@ export default defineSchema({
   deliveryEvents: defineTable({
     emailId: v.id("emails"),
     resendId: v.string(),
-    eventType: v.union(
-      v.literal("email.sent"),
-      v.literal("email.delivered"),
-      v.literal("email.bounced"),
-      v.literal("email.complained"),
-      v.literal("email.failed"),
-      v.literal("email.delivery_delayed"),
-      v.literal("email.opened"),
-      v.literal("email.clicked"),
-    ),
+    eventType: vEventType,
     createdAt: v.string(),
     message: v.optional(v.string()),
   }).index("by_emailId_eventType", ["emailId", "eventType"]),
@@ -49,13 +40,13 @@ export default defineSchema({
       ),
     ),
     status: vStatus,
-    errorMessage: v.optional(v.string()),
-    bounced: v.boolean(),
     complained: v.boolean(),
-    failed: v.boolean(),
-    deliveryDelayed: v.boolean(),
+    errorMessage: v.optional(v.string()),
     opened: v.boolean(),
-    clicked: v.boolean(),
+    bounced: v.optional(v.boolean()),
+    failed: v.optional(v.boolean()),
+    deliveryDelayed: v.optional(v.boolean()),
+    clicked: v.optional(v.boolean()),
     resendId: v.optional(v.string()),
     segment: v.number(),
     finalizedAt: v.number(),

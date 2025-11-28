@@ -13,6 +13,7 @@ import { api, components, internal } from "./_generated/api.js";
 import { internalMutation } from "./_generated/server.js";
 import { type Id, type Doc } from "./_generated/dataModel.js";
 import {
+  ACCEPTED_EVENT_TYPES,
   type RuntimeConfig,
   vEmailEvent,
   vOptions,
@@ -85,6 +86,34 @@ const resendApiRateLimiter = new RateLimiter(components.rateLimiter, {
     kind: "fixed window",
     period: RESEND_ONE_CALL_EVERY_MS,
     rate: 1,
+  },
+});
+
+// Periodic background job to clean up old emails that have already
+// been delivered, bounced, what have you.
+export const cleanupOldEmails = mutation({
+  args: { olderThan: v.optional(v.number()) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const BATCH_SIZE = 100;
+    const olderThan = args.olderThan ?? FINALIZED_EMAIL_RETENTION_MS;
+    const oldAndDone = await ctx.db
+      .query("emails")
+      .withIndex("by_finalizedAt", (q) =>
+        q.lt("finalizedAt", Date.now() - olderThan),
+      )
+      .take(BATCH_SIZE);
+    for (const email of oldAndDone) {
+      await cleanupEmail(ctx, email);
+    }
+    if (oldAndDone.length > 0) {
+      console.log(`Cleaned up ${oldAndDone.length} emails`);
+    }
+    if (oldAndDone.length === BATCH_SIZE) {
+      await ctx.scheduler.runAfter(0, api.lib.cleanupOldEmails, {
+        olderThan,
+      });
+    }
   },
 });
 
@@ -284,12 +313,12 @@ export const getStatus = query({
     return {
       status: email.status,
       errorMessage: email.errorMessage ?? null,
-      bounced: email.bounced,
+      bounced: email.bounced ?? false,
       complained: email.complained,
-      failed: email.failed,
-      deliveryDelayed: email.deliveryDelayed,
+      failed: email.failed ?? false,
+      deliveryDelayed: email.deliveryDelayed ?? false,
       opened: email.opened,
-      clicked: email.clicked,
+      clicked: email.clicked ?? false,
     };
   },
 });
@@ -861,22 +890,11 @@ export const handleEmailEvent = mutation({
     }
 
     // Record delivery-related events for auditing/analytics (now including opened/clicked)
-    const acceptedTypes = [
-      "email.sent",
-      "email.delivered",
-      "email.bounced",
-      "email.failed",
-      "email.delivery_delayed",
-      "email.complained",
-      "email.opened",
-      "email.clicked",
-    ] as const;
-
-    if (acceptedTypes.includes(event.type as (typeof acceptedTypes)[number])) {
+    if (ACCEPTED_EVENT_TYPES.includes(event.type)) {
       await ctx.db.insert("deliveryEvents", {
         emailId: email._id,
         resendId: event.data.email_id,
-        eventType: event.type as (typeof acceptedTypes)[number],
+        eventType: event.type,
         createdAt: event.created_at,
         message:
           event.type === "email.bounced"
@@ -922,34 +940,6 @@ async function enqueueCallbackIfExists(
     });
   }
 }
-
-// Periodic background job to clean up old emails that have already
-// been delivered, bounced, what have you.
-export const cleanupOldEmails = mutation({
-  args: { olderThan: v.optional(v.number()) },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    const BATCH_SIZE = 100;
-    const olderThan = args.olderThan ?? FINALIZED_EMAIL_RETENTION_MS;
-    const oldAndDone = await ctx.db
-      .query("emails")
-      .withIndex("by_finalizedAt", (q) =>
-        q.lt("finalizedAt", Date.now() - olderThan),
-      )
-      .take(BATCH_SIZE);
-    for (const email of oldAndDone) {
-      await cleanupEmail(ctx, email);
-    }
-    if (oldAndDone.length > 0) {
-      console.log(`Cleaned up ${oldAndDone.length} emails`);
-    }
-    if (oldAndDone.length === BATCH_SIZE) {
-      await ctx.scheduler.runAfter(0, api.lib.cleanupOldEmails, {
-        olderThan,
-      });
-    }
-  },
-});
 
 async function cleanupEmail(ctx: MutationCtx, email: Doc<"emails">) {
   await ctx.db.delete(email._id);
