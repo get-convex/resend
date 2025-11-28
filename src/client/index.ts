@@ -9,6 +9,7 @@ import {
 import { v, type VString } from "convex/values";
 import { Webhook } from "svix";
 import {
+  Template,
   vEmailEvent,
   type EmailEvent,
   type RunMutationCtx,
@@ -303,43 +304,20 @@ export class Resend {
     if (this.config.apiKey === "") throw new Error("API key is not set");
 
     // Prepare the mutation args based on whether it's a template or traditional email
-    if ("template" in sendEmailArgs) {
-      // Template-based email
-      const id = await ctx.runMutation(this.component.lib.sendEmail, {
-        options: await configToRuntimeConfig(this.config, this.onEmailEvent),
-        from: sendEmailArgs.from,
-        to:
-          typeof sendEmailArgs.to === "string"
-            ? [sendEmailArgs.to]
-            : sendEmailArgs.to,
-        cc: toArray(sendEmailArgs.cc),
-        bcc: toArray(sendEmailArgs.bcc),
-        subject: sendEmailArgs.subject,
-        replyTo: sendEmailArgs.replyTo,
-        headers: sendEmailArgs.headers,
-        templateId: sendEmailArgs.template.id,
-        templateVariables: JSON.stringify(sendEmailArgs.template.variables),
-      });
-      return id as EmailId;
-    } else {
-      // Traditional email
-      const id = await ctx.runMutation(this.component.lib.sendEmail, {
-        options: await configToRuntimeConfig(this.config, this.onEmailEvent),
-        from: sendEmailArgs.from,
-        to:
-          typeof sendEmailArgs.to === "string"
-            ? [sendEmailArgs.to]
-            : sendEmailArgs.to,
-        cc: toArray(sendEmailArgs.cc),
-        bcc: toArray(sendEmailArgs.bcc),
-        replyTo: sendEmailArgs.replyTo,
-        headers: sendEmailArgs.headers,
-        subject: sendEmailArgs.subject,
-        html: sendEmailArgs.html,
-        text: sendEmailArgs.text,
-      });
-      return id as EmailId;
-    }
+
+    // Traditional email
+    const id = await ctx.runMutation(this.component.lib.sendEmail, {
+      options: await configToRuntimeConfig(this.config, this.onEmailEvent),
+      ...sendEmailArgs,
+      to:
+        typeof sendEmailArgs.to === "string"
+          ? [sendEmailArgs.to]
+          : sendEmailArgs.to,
+      cc: toArray(sendEmailArgs.cc),
+      bcc: toArray(sendEmailArgs.bcc),
+    });
+
+    return id as EmailId;
   }
 
   async sendEmailManually(
@@ -452,8 +430,7 @@ export class Resend {
     createdAt: number;
     html?: string;
     text?: string;
-    templateId?: string;
-    templateVariables?: string;
+    template?: Template;
   } | null> {
     return await ctx.runQuery(this.component.lib.get, {
       emailId,
