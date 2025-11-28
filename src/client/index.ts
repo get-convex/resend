@@ -131,19 +131,41 @@ export type EmailStatus = {
   errorMessage: string | null;
 
   /**
+   * Whether the email bounced.
+   */
+  bounced: boolean;
+
+  /**
    * Whether the email was marked as spam. This is only set on emails which are delivered.
    */
   complained: boolean;
 
   /**
+   * Whether the email failed to send.
+   */
+  failed: boolean;
+
+  /**
+   * Whether the email delivery was delayed.
+   */
+  deliveryDelayed: boolean;
+
+  /**
    * If you're using open tracking, did Resend detect that the email was opened?
    */
   opened: boolean;
+
+  /**
+   * If you're using click tracking, did Resend detect that a link was clicked?
+   */
+  clicked: boolean;
 };
 
 export type SendEmailOptions = {
   from: string;
-  to: string;
+  to: string | string[];
+  cc?: string | string[];
+  bcc?: string | string[];
   subject: string;
   html?: string;
   text?: string;
@@ -246,7 +268,7 @@ export class Resend {
     replyTo?: string[],
     headers?: { name: string; value: string }[],
   ) {
-    const sendEmailArgs =
+    const sendEmailArgs: SendEmailOptions =
       typeof fromOrOptions === "string"
         ? {
             from: fromOrOptions,
@@ -264,6 +286,12 @@ export class Resend {
     const id = await ctx.runMutation(this.component.lib.sendEmail, {
       options: await configToRuntimeConfig(this.config, this.onEmailEvent),
       ...sendEmailArgs,
+      to:
+        typeof sendEmailArgs.to === "string"
+          ? [sendEmailArgs.to]
+          : sendEmailArgs.to,
+      cc: toArray(sendEmailArgs.cc),
+      bcc: toArray(sendEmailArgs.bcc),
     });
 
     return id as EmailId;
@@ -354,14 +382,18 @@ export class Resend {
     emailId: EmailId,
   ): Promise<{
     from: string;
-    to: string;
+    to: string[];
     subject: string;
     replyTo: string[];
     headers?: { name: string; value: string }[];
     status: Status;
     errorMessage?: string;
+    bounced: boolean;
     complained: boolean;
+    failed: boolean;
+    deliveryDelayed: boolean;
     opened: boolean;
+    clicked: boolean;
     resendId?: string;
     finalizedAt: number;
     createdAt: number;
@@ -435,4 +467,8 @@ export class Resend {
       handler,
     });
   }
+}
+function toArray<T>(value: T | T[] | undefined): T[] | undefined {
+  if (value === undefined) return undefined;
+  return Array.isArray(value) ? value : [value];
 }

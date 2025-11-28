@@ -13,6 +13,7 @@ import { api, components, internal } from "./_generated/api.js";
 import { internalMutation } from "./_generated/server.js";
 import { type Id, type Doc } from "./_generated/dataModel.js";
 import {
+  ACCEPTED_EVENT_TYPES,
   type RuntimeConfig,
   vEmailEvent,
   vOptions,
@@ -24,12 +25,7 @@ import { isDeepEqual } from "remeda";
 import schema from "./schema.js";
 import { omit } from "convex-helpers";
 import { parse } from "convex-helpers/validators";
-import {
-  assertExhaustive,
-  attemptToParse,
-  iife,
-  isValidResendTestEmail,
-} from "./utils.js";
+import { assertExhaustive, attemptToParse } from "./utils.js";
 
 // Move some of these to options? TODO
 const SEGMENT_MS = 125;
@@ -42,6 +38,23 @@ const FINALIZED_EMAIL_RETENTION_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 const FINALIZED_EPOCH = Number.MAX_SAFE_INTEGER;
 const ABANDONED_EMAIL_RETENTION_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
 
+const RESEND_TEST_EMAILS = ["delivered", "bounced", "complained"];
+
+function isTestEmail(email: string) {
+  const [prefix, domain] = email.split("@");
+  if (domain !== "resend.dev") {
+    return false;
+  }
+  for (const testEmail of RESEND_TEST_EMAILS) {
+    if (prefix === testEmail) {
+      return true;
+    }
+    if (prefix.startsWith(testEmail + "+")) {
+      return true;
+    }
+  }
+  return false;
+}
 const PERMANENT_ERROR_CODES = new Set([
   400, 401 /* 402 not included - unclear spec */, 403, 404, 405, 406, 407, 408,
   /* 409 not included - conflict may work on retry */
@@ -76,13 +89,43 @@ const resendApiRateLimiter = new RateLimiter(components.rateLimiter, {
   },
 });
 
+// Periodic background job to clean up old emails that have already
+// been delivered, bounced, what have you.
+export const cleanupOldEmails = mutation({
+  args: { olderThan: v.optional(v.number()) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const BATCH_SIZE = 100;
+    const olderThan = args.olderThan ?? FINALIZED_EMAIL_RETENTION_MS;
+    const oldAndDone = await ctx.db
+      .query("emails")
+      .withIndex("by_finalizedAt", (q) =>
+        q.lt("finalizedAt", Date.now() - olderThan),
+      )
+      .take(BATCH_SIZE);
+    for (const email of oldAndDone) {
+      await cleanupEmail(ctx, email);
+    }
+    if (oldAndDone.length > 0) {
+      console.log(`Cleaned up ${oldAndDone.length} emails`);
+    }
+    if (oldAndDone.length === BATCH_SIZE) {
+      await ctx.scheduler.runAfter(0, api.lib.cleanupOldEmails, {
+        olderThan,
+      });
+    }
+  },
+});
+
 // Enqueue an email to be send.  A background job will grab batches
 // of emails and enqueue them to be sent by the workpool.
 export const sendEmail = mutation({
   args: {
     options: vOptions,
     from: v.string(),
-    to: v.string(),
+    to: v.array(v.string()),
+    cc: v.optional(v.array(v.string())),
+    bcc: v.optional(v.array(v.string())),
     subject: v.string(),
     html: v.optional(v.string()),
     text: v.optional(v.string()),
@@ -99,12 +142,15 @@ export const sendEmail = mutation({
   returns: v.id("emails"),
   handler: async (ctx, args) => {
     // We only allow test emails in test mode.
-    if (args.options.testMode && !isValidResendTestEmail(args.to)) {
-      throw new Error(
-        `Test mode is enabled, but email address is not a valid resend test address. Did you want to set testMode: false in your ResendOptions?`,
-      );
+    if (args.options.testMode) {
+      for (const to of [...args.to, ...(args.cc ?? []), ...(args.bcc ?? [])]) {
+        if (!isTestEmail(to)) {
+          throw new Error(
+            `Test mode is enabled, but email address is not a valid resend test address. Did you want to set testMode: false in your ResendOptions?`,
+          );
+        }
+      }
     }
-
     // We require either html or text to be provided. No body = no bueno.
     if (args.html === undefined && args.text === undefined) {
       throw new Error("Either html or text must be provided");
@@ -136,14 +182,20 @@ export const sendEmail = mutation({
     const emailId = await ctx.db.insert("emails", {
       from: args.from,
       to: args.to,
+      cc: args.cc,
+      bcc: args.bcc,
       subject: args.subject,
       html: htmlContentId,
       text: textContentId,
       headers: args.headers,
       segment,
       status: "waiting",
+      bounced: false,
       complained: false,
+      failed: false,
+      deliveryDelayed: false,
       opened: false,
+      clicked: false,
       replyTo: args.replyTo ?? [],
       finalizedAt: FINALIZED_EPOCH,
     });
@@ -157,7 +209,7 @@ export const sendEmail = mutation({
 export const createManualEmail = mutation({
   args: {
     from: v.string(),
-    to: v.string(),
+    to: v.union(v.array(v.string()), v.string()),
     subject: v.string(),
     replyTo: v.optional(v.array(v.string())),
     headers: v.optional(
@@ -173,13 +225,17 @@ export const createManualEmail = mutation({
   handler: async (ctx, args) => {
     const emailId = await ctx.db.insert("emails", {
       from: args.from,
-      to: args.to,
+      to: Array.isArray(args.to) ? args.to : [args.to],
       subject: args.subject,
       headers: args.headers,
       segment: Infinity,
       status: "queued",
+      bounced: false,
       complained: false,
+      failed: false,
+      deliveryDelayed: false,
       opened: false,
+      clicked: false,
       replyTo: args.replyTo ?? [],
       finalizedAt: FINALIZED_EPOCH,
     });
@@ -240,8 +296,12 @@ export const getStatus = query({
     v.object({
       status: vStatus,
       errorMessage: v.union(v.string(), v.null()),
+      bounced: v.boolean(),
       complained: v.boolean(),
+      failed: v.boolean(),
+      deliveryDelayed: v.boolean(),
       opened: v.boolean(),
+      clicked: v.boolean(),
     }),
     v.null(),
   ),
@@ -253,8 +313,12 @@ export const getStatus = query({
     return {
       status: email.status,
       errorMessage: email.errorMessage ?? null,
+      bounced: email.bounced ?? false,
       complained: email.complained,
+      failed: email.failed ?? false,
+      deliveryDelayed: email.deliveryDelayed ?? false,
       opened: email.opened,
+      clicked: email.clicked ?? false,
     };
   },
 });
@@ -270,6 +334,7 @@ export const get = query({
       createdAt: v.number(),
       html: v.optional(v.string()),
       text: v.optional(v.string()),
+      to: v.array(v.string()),
     }),
     v.null(),
   ),
@@ -289,6 +354,7 @@ export const get = query({
       createdAt: email._creationTime,
       html,
       text,
+      to: Array.isArray(email.to) ? email.to : [email.to],
     };
   },
 });
@@ -594,11 +660,13 @@ async function createResendBatchPayload(
   // Build payload for resend API.
   const batchPayload = emails.map((email: Doc<"emails">) => ({
     from: email.from,
-    to: [email.to],
+    to: Array.isArray(email.to) ? email.to : [email.to],
     subject: email.subject,
+    bcc: email.bcc,
+    cc: email.cc,
     html: email.html ? contentMap.get(email.html) : undefined,
     text: email.text ? contentMap.get(email.text) : undefined,
-    reply_to: email.replyTo && email.replyTo.length ? email.replyTo : undefined,
+    reply_to: email.replyTo ? email.replyTo : undefined,
     headers: email.headers
       ? Object.fromEntries(
           email.headers.map((h: { name: string; value: string }) => [
@@ -670,6 +738,126 @@ export const getEmailByResendId = internalQuery({
   },
 });
 
+// Compute the updated email record for a given webhook event without writing it.
+// Only returns an update if there's a state change to reduce write contention.
+function computeEmailUpdateFromEvent(
+  email: Doc<"emails">,
+  event: EmailEvent,
+): Doc<"emails"> | null {
+  // Define precedence for statuses; only allow upgrades
+  const statusRank: Record<Doc<"emails">["status"], number> = {
+    waiting: 0,
+    queued: 1,
+    sent: 2,
+    delivery_delayed: 3,
+    delivered: 4,
+    bounced: 5,
+    failed: 5,
+    cancelled: 100, // treat cancelled as terminal
+  };
+
+  const currentRank = statusRank[email.status];
+  const canUpgradeTo = (next: Doc<"emails">["status"]) => {
+    if (email.status === "cancelled") return false;
+    return statusRank[next] > currentRank;
+  };
+
+  // NOOP -- we do this automatically when we send the email.
+  if (event.type == "email.sent") return null;
+
+  if (event.type == "email.clicked") {
+    // Only mutate if this is the first click
+    if (email.clicked) return null;
+    return {
+      ...email,
+      clicked: true,
+    };
+  }
+
+  if (event.type == "email.failed") {
+    // Only mutate if this is the first failure OR status changes
+    const statusWillChange = canUpgradeTo("failed");
+    if (!statusWillChange && email.failed) {
+      return null; // No state change
+    }
+    const updated: Doc<"emails"> = {
+      ...email,
+      failed: true,
+    };
+    if (statusWillChange) {
+      updated.status = "failed";
+      updated.finalizedAt = Date.now();
+    }
+    return updated;
+  }
+
+  if (event.type == "email.delivered") {
+    if (!canUpgradeTo("delivered")) return null;
+    return {
+      ...email,
+      status: "delivered",
+      finalizedAt: Date.now(),
+    };
+  }
+
+  if (event.type == "email.bounced") {
+    // Only mutate if this is the first bounce OR status changes
+    const statusWillChange = canUpgradeTo("bounced");
+    if (!statusWillChange && email.bounced) {
+      return null; // No state change
+    }
+    const updated: Doc<"emails"> = {
+      ...email,
+      errorMessage: event.data.bounce?.message,
+      bounced: true,
+    };
+    if (statusWillChange) {
+      updated.status = "bounced";
+      updated.finalizedAt = Date.now();
+    }
+    return updated;
+  }
+
+  if (event.type == "email.delivery_delayed") {
+    // Only mutate if this is the first delay OR status changes
+    const statusWillChange = canUpgradeTo("delivery_delayed");
+    if (!statusWillChange && email.deliveryDelayed) {
+      return null; // No state change
+    }
+    const updated: Doc<"emails"> = {
+      ...email,
+      deliveryDelayed: true,
+    };
+    if (statusWillChange) {
+      updated.status = "delivery_delayed";
+    }
+    return updated;
+  }
+
+  if (event.type == "email.complained") {
+    // Only mutate if this is the first complaint
+    if (email.complained) return null;
+    return {
+      ...email,
+      complained: true,
+      finalizedAt:
+        email.finalizedAt === FINALIZED_EPOCH ? Date.now() : email.finalizedAt,
+    };
+  }
+
+  if (event.type == "email.opened") {
+    // Only mutate if this is the first open
+    if (email.opened) return null;
+    return {
+      ...email,
+      opened: true,
+    };
+  }
+
+  assertExhaustive(event);
+  return null;
+}
+
 // Handle a webhook event. Mostly we just update the email status.
 export const handleEmailEvent = mutation({
   args: {
@@ -701,56 +889,30 @@ export const handleEmailEvent = mutation({
       return;
     }
 
-    // Returns the changed email or null if not changed
-    const changed = iife((): Doc<"emails"> | null => {
-      // NOOP -- we do this automatically when we send the email.
-      if (event.type == "email.sent") return null;
+    // Record delivery-related events for auditing/analytics (now including opened/clicked)
+    if (ACCEPTED_EVENT_TYPES.includes(event.type)) {
+      await ctx.db.insert("deliveryEvents", {
+        emailId: email._id,
+        resendId: event.data.email_id,
+        eventType: event.type,
+        createdAt: event.created_at,
+        message:
+          event.type === "email.bounced"
+            ? event.data.bounce?.message
+            : event.type === "email.failed"
+              ? event.data.failed?.reason
+              : undefined,
+      });
+    }
 
-      // These we dont do anything with
-      if (event.type == "email.clicked") return null;
-      if (event.type == "email.failed") return null;
+    // Apply the event directly to update email state if needed
+    const updated = computeEmailUpdateFromEvent(email, event);
+    if (updated) {
+      await ctx.db.replace(email._id, updated);
+    }
 
-      if (event.type == "email.delivered")
-        return {
-          ...email,
-          status: "delivered",
-          finalizedAt: Date.now(),
-        };
-
-      if (event.type == "email.bounced")
-        return {
-          ...email,
-          status: "bounced",
-          finalizedAt: Date.now(),
-          errorMessage: event.data.bounce?.message,
-        };
-
-      if (event.type == "email.delivery_delayed")
-        return {
-          ...email,
-          status: "delivery_delayed",
-        };
-
-      if (event.type == "email.complained")
-        return {
-          ...email,
-          complained: true,
-        };
-
-      if (event.type == "email.opened")
-        return {
-          ...email,
-          opened: true,
-        };
-
-      assertExhaustive(event);
-
-      return null;
-    });
-
-    if (changed) await ctx.db.replace(email._id, changed);
-
-    await enqueueCallbackIfExists(ctx, changed ?? email, event);
+    // Keep callback behavior (invoked with current email state and raw event)
+    await enqueueCallbackIfExists(ctx, email, event);
   },
 });
 
@@ -779,38 +941,22 @@ async function enqueueCallbackIfExists(
   }
 }
 
-// Periodic background job to clean up old emails that have already
-// been delivered, bounced, what have you.
-export const cleanupOldEmails = mutation({
-  args: { olderThan: v.optional(v.number()) },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    const olderThan = args.olderThan ?? FINALIZED_EMAIL_RETENTION_MS;
-    const oldAndDone = await ctx.db
-      .query("emails")
-      .withIndex("by_finalizedAt", (q) =>
-        q.lt("finalizedAt", Date.now() - olderThan),
-      )
-      .take(500);
-    for (const email of oldAndDone) {
-      await ctx.db.delete(email._id);
-      if (email.text) {
-        await ctx.db.delete(email.text);
-      }
-      if (email.html) {
-        await ctx.db.delete(email.html);
-      }
-    }
-    if (oldAndDone.length > 0) {
-      console.log(`Cleaned up ${oldAndDone.length} emails`);
-    }
-    if (oldAndDone.length === 500) {
-      await ctx.scheduler.runAfter(0, api.lib.cleanupOldEmails, {
-        olderThan,
-      });
-    }
-  },
-});
+async function cleanupEmail(ctx: MutationCtx, email: Doc<"emails">) {
+  await ctx.db.delete(email._id);
+  if (email.text) {
+    await ctx.db.delete(email.text);
+  }
+  if (email.html) {
+    await ctx.db.delete(email.html);
+  }
+  const events = await ctx.db
+    .query("deliveryEvents")
+    .withIndex("by_emailId_eventType", (q) => q.eq("emailId", email._id))
+    .collect();
+  for (const event of events) {
+    await ctx.db.delete(event._id);
+  }
+}
 
 // Periodic background job to clean up old emails that have been abandoned.
 // Meaning, even if they're not finalized, we should just get rid of them.
@@ -828,13 +974,7 @@ export const cleanupAbandonedEmails = mutation({
 
     for (const email of oldAndAbandoned) {
       // No webhook to finalize these. We'll just delete them.
-      await ctx.db.delete(email._id);
-      if (email.text) {
-        await ctx.db.delete(email.text);
-      }
-      if (email.html) {
-        await ctx.db.delete(email.html);
-      }
+      await cleanupEmail(ctx, email);
     }
     if (oldAndAbandoned.length > 0) {
       console.log(`Cleaned up ${oldAndAbandoned.length} emails`);
