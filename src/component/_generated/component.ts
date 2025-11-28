@@ -89,7 +89,9 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             | "delivery_delayed"
             | "bounced"
             | "failed";
-          subject: string;
+          subject?: string;
+          templateId?: string;
+          templateVariables?: string;
           text?: string;
           to: Array<string>;
         } | null,
@@ -143,7 +145,9 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             testMode: boolean;
           };
           replyTo?: Array<string>;
-          subject: string;
+          subject?: string;
+          templateId?: string;
+          templateVariables?: string;
           text?: string;
           to: Array<string>;
         },

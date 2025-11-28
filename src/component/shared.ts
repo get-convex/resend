@@ -24,6 +24,13 @@ export const vStatus = v.union(
 );
 export type Status = Infer<typeof vStatus>;
 
+// Validator for template data.
+export const vTemplate = v.object({
+  id: v.string(),
+  variables: v.record(v.string(), v.union(v.string(), v.number())),
+});
+export type Template = Infer<typeof vTemplate>;
+
 // Validator for the runtime options used by the component.
 export const vOptions = v.object({
   initialBackoffMs: v.number(),

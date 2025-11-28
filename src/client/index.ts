@@ -22,8 +22,13 @@ export type ResendComponent = ComponentApi;
 
 export type EmailId = string & { __isEmailId: true };
 export const vEmailId = v.string() as VString<EmailId>;
-export { vEmailEvent, vOptions, vStatus } from "../component/shared.js";
-export type { EmailEvent, Status } from "../component/shared.js";
+export {
+  vEmailEvent,
+  vOptions,
+  vStatus,
+  vTemplate,
+} from "../component/shared.js";
+export type { EmailEvent, Status, Template } from "../component/shared.js";
 export const vOnEmailEventArgs = v.object({
   id: vEmailId,
   event: vEmailEvent,
@@ -161,17 +166,31 @@ export type EmailStatus = {
   clicked: boolean;
 };
 
-export type SendEmailOptions = {
-  from: string;
-  to: string | string[];
-  cc?: string | string[];
-  bcc?: string | string[];
-  subject: string;
-  html?: string;
-  text?: string;
-  replyTo?: string[];
-  headers?: { name: string; value: string }[];
-};
+export type SendEmailOptions =
+  | {
+      from: string;
+      to: string | string[];
+      cc?: string | string[];
+      bcc?: string | string[];
+      subject: string;
+      html?: string;
+      text?: string;
+      replyTo?: string[];
+      headers?: { name: string; value: string }[];
+    }
+  | {
+      from: string;
+      to: string | string[];
+      cc?: string | string[];
+      bcc?: string | string[];
+      subject?: string;
+      template: {
+        id: string;
+        variables: Record<string, string | number>;
+      };
+      replyTo?: string[];
+      headers?: { name: string; value: string }[];
+    };
 
 export class Resend {
   public config: Config;
@@ -283,23 +302,57 @@ export class Resend {
 
     if (this.config.apiKey === "") throw new Error("API key is not set");
 
-    const id = await ctx.runMutation(this.component.lib.sendEmail, {
-      options: await configToRuntimeConfig(this.config, this.onEmailEvent),
-      ...sendEmailArgs,
-      to:
-        typeof sendEmailArgs.to === "string"
-          ? [sendEmailArgs.to]
-          : sendEmailArgs.to,
-      cc: toArray(sendEmailArgs.cc),
-      bcc: toArray(sendEmailArgs.bcc),
-    });
-
-    return id as EmailId;
+    // Prepare the mutation args based on whether it's a template or traditional email
+    if ("template" in sendEmailArgs) {
+      // Template-based email
+      const id = await ctx.runMutation(this.component.lib.sendEmail, {
+        options: await configToRuntimeConfig(this.config, this.onEmailEvent),
+        from: sendEmailArgs.from,
+        to:
+          typeof sendEmailArgs.to === "string"
+            ? [sendEmailArgs.to]
+            : sendEmailArgs.to,
+        cc: toArray(sendEmailArgs.cc),
+        bcc: toArray(sendEmailArgs.bcc),
+        subject: sendEmailArgs.subject,
+        replyTo: sendEmailArgs.replyTo,
+        headers: sendEmailArgs.headers,
+        templateId: sendEmailArgs.template.id,
+        templateVariables: JSON.stringify(sendEmailArgs.template.variables),
+      });
+      return id as EmailId;
+    } else {
+      // Traditional email
+      const id = await ctx.runMutation(this.component.lib.sendEmail, {
+        options: await configToRuntimeConfig(this.config, this.onEmailEvent),
+        from: sendEmailArgs.from,
+        to:
+          typeof sendEmailArgs.to === "string"
+            ? [sendEmailArgs.to]
+            : sendEmailArgs.to,
+        cc: toArray(sendEmailArgs.cc),
+        bcc: toArray(sendEmailArgs.bcc),
+        replyTo: sendEmailArgs.replyTo,
+        headers: sendEmailArgs.headers,
+        subject: sendEmailArgs.subject,
+        html: sendEmailArgs.html,
+        text: sendEmailArgs.text,
+      });
+      return id as EmailId;
+    }
   }
 
   async sendEmailManually(
     ctx: RunMutationCtx,
-    options: Omit<SendEmailOptions, "html" | "text">,
+    options: {
+      from: string;
+      to: string | string[];
+      cc?: string | string[];
+      bcc?: string | string[];
+      subject: string;
+      replyTo?: string[];
+      headers?: { name: string; value: string }[];
+    },
     sendCallback: (emailId: EmailId) => Promise<string>,
   ): Promise<EmailId> {
     const emailId = (await ctx.runMutation(
@@ -383,7 +436,7 @@ export class Resend {
   ): Promise<{
     from: string;
     to: string[];
-    subject: string;
+    subject?: string;
     replyTo: string[];
     headers?: { name: string; value: string }[];
     status: Status;
@@ -399,6 +452,8 @@ export class Resend {
     createdAt: number;
     html?: string;
     text?: string;
+    templateId?: string;
+    templateVariables?: string;
   } | null> {
     return await ctx.runQuery(this.component.lib.get, {
       emailId,

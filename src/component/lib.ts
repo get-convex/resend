@@ -126,9 +126,11 @@ export const sendEmail = mutation({
     to: v.array(v.string()),
     cc: v.optional(v.array(v.string())),
     bcc: v.optional(v.array(v.string())),
-    subject: v.string(),
+    subject: v.optional(v.string()),
     html: v.optional(v.string()),
     text: v.optional(v.string()),
+    templateId: v.optional(v.string()),
+    templateVariables: v.optional(v.string()),
     replyTo: v.optional(v.array(v.string())),
     headers: v.optional(
       v.array(
@@ -151,9 +153,18 @@ export const sendEmail = mutation({
         }
       }
     }
-    // We require either html or text to be provided. No body = no bueno.
-    if (args.html === undefined && args.text === undefined) {
-      throw new Error("Either html or text must be provided");
+    // We require either html/text or a template to be provided.
+    const hasContent = args.html !== undefined || args.text !== undefined;
+    const hasTemplate = args.templateId !== undefined;
+
+    if (!hasContent && !hasTemplate) {
+      throw new Error("Either html/text or template must be provided");
+    }
+    if (hasContent && hasTemplate) {
+      throw new Error("Cannot provide both html/text and template");
+    }
+    if (!hasTemplate && args.subject === undefined) {
+      throw new Error("Subject is required when not using a template");
     }
 
     // Store the text/html into separate records to keep things fast and memory low when we work with email batches.
@@ -187,6 +198,8 @@ export const sendEmail = mutation({
       subject: args.subject,
       html: htmlContentId,
       text: textContentId,
+      templateId: args.templateId,
+      templateVariables: args.templateVariables,
       headers: args.headers,
       segment,
       status: "waiting",
@@ -330,10 +343,15 @@ export const get = query({
   },
   returns: v.union(
     v.object({
-      ...omit(schema.tables.emails.validator.fields, ["html", "text"]),
+      ...omit(schema.tables.emails.validator.fields, [
+        "html",
+        "text",
+        "templateVariables",
+      ]),
       createdAt: v.number(),
       html: v.optional(v.string()),
       text: v.optional(v.string()),
+      templateVariables: v.optional(v.string()),
       to: v.array(v.string()),
     }),
     v.null(),
@@ -354,6 +372,7 @@ export const get = query({
       createdAt: email._creationTime,
       html,
       text,
+      templateVariables: email.templateVariables,
       to: Array.isArray(email.to) ? email.to : [email.to],
     };
   },
@@ -658,24 +677,43 @@ async function createResendBatchPayload(
   );
 
   // Build payload for resend API.
-  const batchPayload = emails.map((email: Doc<"emails">) => ({
-    from: email.from,
-    to: Array.isArray(email.to) ? email.to : [email.to],
-    subject: email.subject,
-    bcc: email.bcc,
-    cc: email.cc,
-    html: email.html ? contentMap.get(email.html) : undefined,
-    text: email.text ? contentMap.get(email.text) : undefined,
-    reply_to: email.replyTo ? email.replyTo : undefined,
-    headers: email.headers
-      ? Object.fromEntries(
-          email.headers.map((h: { name: string; value: string }) => [
-            h.name,
-            h.value,
-          ]),
-        )
-      : undefined,
-  }));
+  const batchPayload = emails.map((email: Doc<"emails">) => {
+    const payload: Record<string, unknown> = {
+      from: email.from,
+      to: Array.isArray(email.to) ? email.to : [email.to],
+      bcc: email.bcc,
+      cc: email.cc,
+      reply_to: email.replyTo ? email.replyTo : undefined,
+      headers: email.headers
+        ? Object.fromEntries(
+            email.headers.map((h: { name: string; value: string }) => [
+              h.name,
+              h.value,
+            ]),
+          )
+        : undefined,
+    };
+
+    // Add either template or traditional content
+    if (email.templateId) {
+      payload.template = {
+        id: email.templateId,
+        variables: email.templateVariables
+          ? JSON.parse(email.templateVariables)
+          : {},
+      };
+      // Subject can be optionally provided with templates
+      if (email.subject) {
+        payload.subject = email.subject;
+      }
+    } else {
+      payload.subject = email.subject;
+      payload.html = email.html ? contentMap.get(email.html) : undefined;
+      payload.text = email.text ? contentMap.get(email.text) : undefined;
+    }
+
+    return payload;
+  });
 
   return [emails.map((e) => e._id), JSON.stringify(batchPayload)];
 }
