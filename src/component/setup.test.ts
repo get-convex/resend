@@ -191,8 +191,12 @@ export const insertTestSentEmail = (
     subject: "Test Email",
     replyTo: [],
     status: "sent",
+    bounced: false,
     complained: false,
+    failed: false,
+    deliveryDelayed: false,
     opened: false,
+    clicked: false,
     resendId: "test-resend-id-123",
     segment: 1,
     finalizedAt: Number.MAX_SAFE_INTEGER, // FINALIZED_EPOCH

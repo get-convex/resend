@@ -1,3 +1,4 @@
+import { literals } from "convex-helpers/validators";
 import {
   type GenericDataModel,
   type GenericMutationCtx,
@@ -135,6 +136,19 @@ export const vEmailEvent = v.union(
     }),
   }),
 );
+
+export const ACCEPTED_EVENT_TYPES = [
+  "email.sent",
+  "email.delivered",
+  "email.bounced",
+  "email.complained",
+  "email.failed",
+  "email.delivery_delayed",
+  "email.opened",
+  "email.clicked",
+] as const;
+
+export const vEventType = v.union(literals(...ACCEPTED_EVENT_TYPES));
 
 export type EmailEvent = Infer<typeof vEmailEvent>;
 export type EventEventTypes = EmailEvent["type"];

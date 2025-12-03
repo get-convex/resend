@@ -22,8 +22,9 @@ describe("handleEmailEvent", () => {
     email = await insertTestSentEmail(t);
   });
 
-  const exec = (_event: EmailEvent | unknown = event) =>
-    t.mutation(api.lib.handleEmailEvent, { event: _event });
+  const exec = async (_event: EmailEvent | unknown = event) => {
+    await t.mutation(api.lib.handleEmailEvent, { event: _event });
+  };
 
   const getEmail = () =>
     t.run(async (ctx) => {
@@ -41,6 +42,18 @@ describe("handleEmailEvent", () => {
     expect(updatedEmail.status).toBe("delivered");
     expect(updatedEmail.finalizedAt).toBeLessThan(Number.MAX_SAFE_INTEGER);
     expect(updatedEmail.finalizedAt).toBeGreaterThan(Date.now() - 10000); // Within last 10 seconds
+    // deliveryEvents entry created
+    const events = await t.run(async (ctx) =>
+      ctx.db
+        .query("deliveryEvents")
+        .withIndex("by_emailId_eventType", (q) =>
+          q.eq("emailId", email._id).eq("eventType", "email.delivered"),
+        )
+        .collect(),
+    );
+    expect(events.length).toBe(1);
+    expect(events[0].eventType).toBe("email.delivered");
+    expect(events[0].resendId).toBe("test-resend-id-123");
   });
 
   it("updates email for complained event", async () => {
@@ -52,6 +65,15 @@ describe("handleEmailEvent", () => {
     const updatedEmail = await getEmail();
     expect(updatedEmail.status).toBe("sent");
     expect(updatedEmail.complained).toBe(true);
+    // deliveryEvents entry created
+    const events = await t.run(async (ctx) =>
+      ctx.db
+        .query("deliveryEvents")
+        .withIndex("by_emailId_eventType", (q) => q.eq("emailId", email._id))
+        .collect(),
+    );
+    expect(events.length).toBe(1);
+    expect(events[0].eventType).toBe("email.complained");
   });
 
   it("updates email for bounced event", async () => {
@@ -65,6 +87,20 @@ describe("handleEmailEvent", () => {
     expect(updatedEmail.finalizedAt).toBeLessThan(Number.MAX_SAFE_INTEGER);
     expect(updatedEmail.finalizedAt).toBeGreaterThan(Date.now() - 10000); // Within last 10 seconds
     expect(updatedEmail.errorMessage).toBe(
+      "The email bounced due to invalid recipient",
+    );
+    // deliveryEvents entry created
+    const events = await t.run(async (ctx) =>
+      ctx.db
+        .query("deliveryEvents")
+        .withIndex("by_emailId_eventType", (q) =>
+          q.eq("emailId", email._id).eq("eventType", "email.bounced"),
+        )
+        .collect(),
+    );
+    expect(events.length).toBe(1);
+    expect(events[0].eventType).toBe("email.bounced");
+    expect(events[0].message).toBe(
       "The email bounced due to invalid recipient",
     );
   });
@@ -105,7 +141,7 @@ describe("handleEmailEvent", () => {
     expect(updatedEmail.opened).toBe(false); // Should remain unchanged
   });
 
-  it("does not update email for clicked event", async () => {
+  it("updates email for clicked event", async () => {
     expect(email.status).toBe("sent");
     event = createTestEventOfType("email.clicked");
 
@@ -114,19 +150,21 @@ describe("handleEmailEvent", () => {
     const updatedEmail = await getEmail();
     expect(updatedEmail.status).toBe("sent");
     expect(updatedEmail.finalizedAt).toBe(Number.MAX_SAFE_INTEGER); // Should remain unchanged
+    expect(updatedEmail.clicked).toBe(true); // Now tracks clicks
     expect(updatedEmail.complained).toBe(false); // Should remain unchanged
     expect(updatedEmail.opened).toBe(false); // Should remain unchanged
   });
 
-  it("does not update email for failed event", async () => {
+  it("updates email for failed event and changes status", async () => {
     expect(email.status).toBe("sent");
     event = createTestEventOfType("email.failed");
 
     await exec();
 
     const updatedEmail = await getEmail();
-    expect(updatedEmail.status).toBe("sent");
-    expect(updatedEmail.finalizedAt).toBe(Number.MAX_SAFE_INTEGER); // Should remain unchanged
+    expect(updatedEmail.status).toBe("failed"); // Status changes (failed has higher priority than sent)
+    expect(updatedEmail.failed).toBe(true); // Flag is set
+    expect(updatedEmail.finalizedAt).toBeLessThan(Number.MAX_SAFE_INTEGER); // Should be finalized
     expect(updatedEmail.complained).toBe(false); // Should remain unchanged
     expect(updatedEmail.opened).toBe(false); // Should remain unchanged
   });

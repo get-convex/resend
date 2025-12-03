@@ -53,7 +53,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           headers?: Array<{ name: string; value: string }>;
           replyTo?: Array<string>;
           subject: string;
-          to: string;
+          to: Array<string> | string;
         },
         string,
         Name
@@ -63,9 +63,15 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "internal",
         { emailId: string },
         {
+          bcc?: Array<string>;
+          bounced: boolean;
+          cc?: Array<string>;
+          clicked: boolean;
           complained: boolean;
           createdAt: number;
+          deliveryDelayed: boolean;
           errorMessage?: string;
+          failed: boolean;
           finalizedAt: number;
           from: string;
           headers?: Array<{ name: string; value: string }>;
@@ -85,7 +91,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             | "failed";
           subject: string;
           text?: string;
-          to: string;
+          to: Array<string>;
         } | null,
         Name
       >;
@@ -94,8 +100,12 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "internal",
         { emailId: string },
         {
+          bounced: boolean;
+          clicked: boolean;
           complained: boolean;
+          deliveryDelayed: boolean;
           errorMessage: string | null;
+          failed: boolean;
           opened: boolean;
           status:
             | "waiting"
@@ -120,6 +130,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "mutation",
         "internal",
         {
+          bcc?: Array<string>;
+          cc?: Array<string>;
           from: string;
           headers?: Array<{ name: string; value: string }>;
           html?: string;
@@ -133,7 +145,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           replyTo?: Array<string>;
           subject: string;
           text?: string;
-          to: string;
+          to: Array<string>;
         },
         string,
         Name
