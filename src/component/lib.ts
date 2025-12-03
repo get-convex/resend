@@ -343,15 +343,10 @@ export const get = query({
   },
   returns: v.union(
     v.object({
-      ...omit(schema.tables.emails.validator.fields, [
-        "html",
-        "text",
-        "templateVariables",
-      ]),
+      ...omit(schema.tables.emails.validator.fields, ["html", "text"]),
       createdAt: v.number(),
       html: v.optional(v.string()),
       text: v.optional(v.string()),
-      templateVariables: v.optional(v.string()),
       to: v.array(v.string()),
     }),
     v.null(),
@@ -372,7 +367,6 @@ export const get = query({
       createdAt: email._creationTime,
       html,
       text,
-      templateVariables: email.templateVariables,
       to: Array.isArray(email.to) ? email.to : [email.to],
     };
   },
