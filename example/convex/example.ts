@@ -83,6 +83,40 @@ export const sendOne = internalAction({
   },
 });
 
+export const sendWithTemplate = internalAction({
+  args: {
+    to: v.optional(v.string()),
+    templateId: v.string(),
+    subject: v.optional(v.string()),
+  },
+  returns: v.string(),
+  handler: async (ctx, args) => {
+    const email = await resend.sendEmail(ctx, {
+      from: "onboarding@resend.dev",
+      to: args.to ?? "delivered@resend.dev",
+      subject: args.subject, // Optional: override template's default subject
+      template: {
+        id: args.templateId,
+        variables: {
+          PRODUCT: "Vintage Macintosh",
+          PRICE: 499,
+        },
+      },
+    });
+    console.log("Email with template sent", email);
+    let status = await resend.status(ctx, email);
+    while (
+      status &&
+      (status.status === "queued" || status.status === "waiting")
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      status = await resend.status(ctx, email);
+    }
+    console.log("Email status", status);
+    return email;
+  },
+});
+
 export const insertExpectation = internalMutation({
   args: {
     email: v.string(),
