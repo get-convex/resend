@@ -27,10 +27,12 @@ export default defineSchema({
     to: v.union(v.array(v.string()), v.string()),
     cc: v.optional(v.array(v.string())),
     bcc: v.optional(v.array(v.string())),
-    subject: v.string(),
+    subject: v.optional(v.string()),
     replyTo: v.array(v.string()),
     html: v.optional(v.id("content")),
     text: v.optional(v.id("content")),
+    templateId: v.optional(v.string()),
+    templateVariables: v.optional(v.string()),
     headers: v.optional(
       v.array(
         v.object({
