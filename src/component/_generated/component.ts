@@ -90,8 +90,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             | "bounced"
             | "failed";
           subject?: string;
-          templateId?: string;
-          templateVariables?: string;
+          template?: { id: string; variables: Record<string, string | number> };
           text?: string;
           to: Array<string>;
         } | null,
@@ -146,8 +145,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           };
           replyTo?: Array<string>;
           subject?: string;
-          templateId?: string;
-          templateVariables?: string;
+          template?: { id: string; variables: Record<string, string | number> };
           text?: string;
           to: Array<string>;
         },

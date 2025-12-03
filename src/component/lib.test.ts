@@ -267,11 +267,13 @@ describe("sendEmail with templates", () => {
       },
       from: "test@resend.dev",
       to: ["delivered@resend.dev"],
-      templateId: "order-confirmation",
-      templateVariables: JSON.stringify({
-        PRODUCT: "Vintage Macintosh",
-        PRICE: 499,
-      }),
+      template: {
+        id: "order-confirmation",
+        variables: {
+          PRODUCT: "Vintage Macintosh",
+          PRICE: 499,
+        },
+      },
     });
 
     const email = await t.run(async (ctx) => {
@@ -280,10 +282,11 @@ describe("sendEmail with templates", () => {
       return _email;
     });
 
-    expect(email.templateId).toBe("order-confirmation");
-    expect(email.templateVariables).toBe(
-      JSON.stringify({ PRODUCT: "Vintage Macintosh", PRICE: 499 }),
-    );
+    expect(email.template?.id).toBe("order-confirmation");
+    expect(email.template?.variables).toEqual({
+      PRODUCT: "Vintage Macintosh",
+      PRICE: 499,
+    });
     expect(email.subject).toBeUndefined();
     expect(email.html).toBeUndefined();
     expect(email.text).toBeUndefined();
@@ -303,8 +306,12 @@ describe("sendEmail with templates", () => {
         to: ["delivered@resend.dev"],
         subject: "Test",
         html: "<p>Test</p>",
-        templateId: "order-confirmation",
-        templateVariables: JSON.stringify({ PRODUCT: "Test" }),
+        template: {
+          id: "order-confirmation",
+          variables: {
+            PRODUCT: "Test",
+          },
+        },
       }),
     ).rejects.toThrow("Cannot provide both html/text and template");
   });
@@ -320,8 +327,12 @@ describe("sendEmail with templates", () => {
       from: "test@resend.dev",
       to: ["delivered@resend.dev"],
       subject: "Custom Subject Override",
-      templateId: "order-confirmation",
-      templateVariables: JSON.stringify({ PRODUCT: "Test" }),
+      template: {
+        id: "order-confirmation",
+        variables: {
+          PRODUCT: "Test",
+        },
+      },
     });
 
     const email = await t.run(async (ctx) => {
@@ -330,7 +341,10 @@ describe("sendEmail with templates", () => {
       return _email;
     });
 
-    expect(email.templateId).toBe("order-confirmation");
+    expect(email.template?.id).toBe("order-confirmation");
+    expect(email.template?.variables).toEqual({
+      PRODUCT: "Test",
+    });
     expect(email.subject).toBe("Custom Subject Override");
     expect(email.status).toBe("waiting");
   });

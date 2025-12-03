@@ -18,6 +18,7 @@ import {
   vEmailEvent,
   vOptions,
   vStatus,
+  vTemplate,
 } from "./shared.js";
 import type { FunctionHandle } from "convex/server";
 import type { EmailEvent, RunMutationCtx, RunQueryCtx } from "./shared.js";
@@ -129,8 +130,7 @@ export const sendEmail = mutation({
     subject: v.optional(v.string()),
     html: v.optional(v.string()),
     text: v.optional(v.string()),
-    templateId: v.optional(v.string()),
-    templateVariables: v.optional(v.string()),
+    template: v.optional(vTemplate),
     replyTo: v.optional(v.array(v.string())),
     headers: v.optional(
       v.array(
@@ -155,7 +155,7 @@ export const sendEmail = mutation({
     }
     // We require either html/text or a template to be provided.
     const hasContent = args.html !== undefined || args.text !== undefined;
-    const hasTemplate = args.templateId !== undefined;
+    const hasTemplate = args.template?.id !== undefined;
 
     if (!hasContent && !hasTemplate) {
       throw new Error("Either html/text or template must be provided");
@@ -198,8 +198,7 @@ export const sendEmail = mutation({
       subject: args.subject,
       html: htmlContentId,
       text: textContentId,
-      templateId: args.templateId,
-      templateVariables: args.templateVariables,
+      template: args.template,
       headers: args.headers,
       segment,
       status: "waiting",
@@ -689,13 +688,8 @@ async function createResendBatchPayload(
     };
 
     // Add either template or traditional content
-    if (email.templateId) {
-      payload.template = {
-        id: email.templateId,
-        variables: email.templateVariables
-          ? JSON.parse(email.templateVariables)
-          : {},
-      };
+    if (email.template) {
+      payload.template = email.template;
       // Subject can be optionally provided with templates
       if (email.subject) {
         payload.subject = email.subject;
