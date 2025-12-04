@@ -145,7 +145,10 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           };
           replyTo?: Array<string>;
           subject?: string;
-          template?: { id: string; variables: Record<string, string | number> };
+          template?: {
+            id: string;
+            variables?: Record<string, string | number>;
+          };
           text?: string;
           to: Array<string>;
         },
