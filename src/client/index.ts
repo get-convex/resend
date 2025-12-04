@@ -187,8 +187,10 @@ export type SendEmailOptions =
       subject?: string;
       template: {
         id: string;
-        variables: Record<string, string | number>;
+        variables?: Record<string, string | number>;
       };
+      html?: never;
+      text?: never;
       replyTo?: string[];
       headers?: { name: string; value: string }[];
     };
