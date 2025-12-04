@@ -90,7 +90,10 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             | "bounced"
             | "failed";
           subject?: string;
-          template?: { id: string; variables: Record<string, string | number> };
+          template?: {
+            id: string;
+            variables?: Record<string, string | number>;
+          };
           text?: string;
           to: Array<string>;
         } | null,

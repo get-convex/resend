@@ -35,7 +35,6 @@ jobs:
           repo?"
       - name: Test
         run: |
-          npm run codegenComponent
           npm run test
           npm run typecheck
           npm run lint
