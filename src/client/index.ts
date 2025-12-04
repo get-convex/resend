@@ -419,12 +419,12 @@ export class Resend {
     headers?: { name: string; value: string }[];
     status: Status;
     errorMessage?: string;
-    bounced: boolean;
+    bounced?: boolean;
     complained: boolean;
-    failed: boolean;
-    deliveryDelayed: boolean;
-    opened: boolean;
-    clicked: boolean;
+    failed?: boolean;
+    deliveryDelayed?: boolean;
+    opened?: boolean;
+    clicked?: boolean;
     resendId?: string;
     finalizedAt: number;
     createdAt: number;

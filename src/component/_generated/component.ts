@@ -64,14 +64,14 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         { emailId: string },
         {
           bcc?: Array<string>;
-          bounced: boolean;
+          bounced?: boolean;
           cc?: Array<string>;
-          clicked: boolean;
+          clicked?: boolean;
           complained: boolean;
           createdAt: number;
-          deliveryDelayed: boolean;
+          deliveryDelayed?: boolean;
           errorMessage?: string;
-          failed: boolean;
+          failed?: boolean;
           finalizedAt: number;
           from: string;
           headers?: Array<{ name: string; value: string }>;
