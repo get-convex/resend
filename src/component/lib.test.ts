@@ -8,7 +8,7 @@ import {
   setupTestLastOptions,
   type Tester,
 } from "./setup.test.js";
-import { type Doc } from "./_generated/dataModel.js";
+import { type Doc, type Id } from "./_generated/dataModel.js";
 
 describe("handleEmailEvent", () => {
   let t: Tester;
@@ -246,5 +246,137 @@ describe("handleEmailEvent", () => {
     expect(updatedEmail.finalizedAt).toBe(Number.MAX_SAFE_INTEGER);
     expect(updatedEmail.complained).toBe(false);
     expect(updatedEmail.opened).toBe(false);
+  });
+});
+
+describe("sendEmail with templates", () => {
+  let t: Tester;
+
+  beforeEach(async () => {
+    t = setupTest();
+    await setupTestLastOptions(t);
+  });
+
+  it("should accept template-based email", async () => {
+    const emailId: Id<"emails"> = await t.mutation(api.lib.sendEmail, {
+      options: {
+        apiKey: "test-key",
+        initialBackoffMs: 1000,
+        retryAttempts: 3,
+        testMode: true,
+      },
+      from: "test@resend.dev",
+      to: ["delivered@resend.dev"],
+      template: {
+        id: "order-confirmation",
+        variables: {
+          PRODUCT: "Vintage Macintosh",
+          PRICE: 499,
+        },
+      },
+    });
+
+    const email = await t.run(async (ctx) => {
+      const _email = await ctx.db.get(emailId);
+      if (!_email) throw new Error("Email not found");
+      return _email;
+    });
+
+    expect(email.template?.id).toBe("order-confirmation");
+    expect(email.template?.variables).toEqual({
+      PRODUCT: "Vintage Macintosh",
+      PRICE: 499,
+    });
+    expect(email.subject).toBeUndefined();
+    expect(email.html).toBeUndefined();
+    expect(email.text).toBeUndefined();
+    expect(email.status).toBe("waiting");
+  });
+
+  it("should reject email with both template and html/text", async () => {
+    await expect(
+      t.mutation(api.lib.sendEmail, {
+        options: {
+          apiKey: "test-key",
+          initialBackoffMs: 1000,
+          retryAttempts: 3,
+          testMode: true,
+        },
+        from: "test@resend.dev",
+        to: ["delivered@resend.dev"],
+        subject: "Test",
+        html: "<p>Test</p>",
+        template: {
+          id: "order-confirmation",
+          variables: {
+            PRODUCT: "Test",
+          },
+        },
+      }),
+    ).rejects.toThrow("Cannot provide both html/text and template");
+  });
+
+  it("should accept template email with optional subject", async () => {
+    const emailId: Id<"emails"> = await t.mutation(api.lib.sendEmail, {
+      options: {
+        apiKey: "test-key",
+        initialBackoffMs: 1000,
+        retryAttempts: 3,
+        testMode: true,
+      },
+      from: "test@resend.dev",
+      to: ["delivered@resend.dev"],
+      subject: "Custom Subject Override",
+      template: {
+        id: "order-confirmation",
+        variables: {
+          PRODUCT: "Test",
+        },
+      },
+    });
+
+    const email = await t.run(async (ctx) => {
+      const _email = await ctx.db.get(emailId);
+      if (!_email) throw new Error("Email not found");
+      return _email;
+    });
+
+    expect(email.template?.id).toBe("order-confirmation");
+    expect(email.template?.variables).toEqual({
+      PRODUCT: "Test",
+    });
+    expect(email.subject).toBe("Custom Subject Override");
+    expect(email.status).toBe("waiting");
+  });
+
+  it("should reject email without content or template", async () => {
+    await expect(
+      t.mutation(api.lib.sendEmail, {
+        options: {
+          apiKey: "test-key",
+          initialBackoffMs: 1000,
+          retryAttempts: 3,
+          testMode: true,
+        },
+        from: "test@resend.dev",
+        to: ["delivered@resend.dev"],
+      }),
+    ).rejects.toThrow("Either html/text or template must be provided");
+  });
+
+  it("should reject traditional email without subject", async () => {
+    await expect(
+      t.mutation(api.lib.sendEmail, {
+        options: {
+          apiKey: "test-key",
+          initialBackoffMs: 1000,
+          retryAttempts: 3,
+          testMode: true,
+        },
+        from: "test@resend.dev",
+        to: ["delivered@resend.dev"],
+        html: "<p>Test</p>",
+      }),
+    ).rejects.toThrow("Subject is required when not using a template");
   });
 });

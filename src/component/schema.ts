@@ -1,6 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
-import { vEventType, vOptions, vStatus } from "./shared.js";
+import { vEventType, vOptions, vStatus, vTemplate } from "./shared.js";
 
 export default defineSchema({
   content: defineTable({
@@ -27,10 +27,11 @@ export default defineSchema({
     to: v.union(v.array(v.string()), v.string()),
     cc: v.optional(v.array(v.string())),
     bcc: v.optional(v.array(v.string())),
-    subject: v.string(),
+    subject: v.optional(v.string()),
     replyTo: v.array(v.string()),
     html: v.optional(v.id("content")),
     text: v.optional(v.id("content")),
+    template: v.optional(vTemplate),
     headers: v.optional(
       v.array(
         v.object({
