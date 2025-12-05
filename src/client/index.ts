@@ -46,6 +46,7 @@ function getDefaultConfig(): Config {
     initialBackoffMs: 30000,
     retryAttempts: 5,
     testMode: true,
+    rateLimitPerSecond: 2,
   };
 }
 
@@ -94,6 +95,14 @@ export type ResendOptions = {
       event: EmailEvent;
     }
   > | null;
+
+  /**
+   * The rate limit in requests per second for the Resend API.
+   * Defaults to 2 requests per second, which is the default Resend rate limit.
+   * If your Resend account has a higher rate limit (e.g., 100 requests per second),
+   * set this value accordingly.
+   */
+  rateLimitPerSecond?: number;
 };
 
 async function configToRuntimeConfig(
@@ -112,6 +121,7 @@ async function configToRuntimeConfig(
     initialBackoffMs: config.initialBackoffMs,
     retryAttempts: config.retryAttempts,
     testMode: config.testMode,
+    rateLimitPerSecond: config.rateLimitPerSecond,
     onEmailEvent: onEmailEvent
       ? { fnHandle: await createFunctionHandle(onEmailEvent) }
       : undefined,
@@ -225,6 +235,8 @@ export class Resend {
         options?.initialBackoffMs ?? defaultConfig.initialBackoffMs,
       retryAttempts: options?.retryAttempts ?? defaultConfig.retryAttempts,
       testMode: options?.testMode ?? defaultConfig.testMode,
+      rateLimitPerSecond:
+        options?.rateLimitPerSecond ?? defaultConfig.rateLimitPerSecond,
     };
     if (options?.onEmailEvent) {
       this.onEmailEvent = options.onEmailEvent;
