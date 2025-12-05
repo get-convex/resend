@@ -15,6 +15,7 @@
   ],
   "type": "module",
   "scripts": {
+    "codegenComponent": "CONVEX_AGENT_MODE=anonymous npx convex codegen --component-dir ./src/component",
     "dev": "run-p -r 'dev:*'",
     "dev:backend": "convex dev --typecheck-components",
     "dev:frontend": "cd example && vite --clearScreen false",

@@ -27,7 +27,7 @@ export type Status = Infer<typeof vStatus>;
 // Validator for template data.
 export const vTemplate = v.object({
   id: v.string(),
-  variables: v.record(v.string(), v.union(v.string(), v.number())),
+  variables: v.optional(v.record(v.string(), v.union(v.string(), v.number()))),
 });
 export type Template = Infer<typeof vTemplate>;
 
