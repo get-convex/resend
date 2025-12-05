@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1
+
+- Support for templates and template variables.
+- Allows passing multiple recipients in to/cc/bcc.
+
 ## 0.2.0
 
 - Adds /test and /\_generated/component.js entrypoints
