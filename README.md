@@ -307,16 +307,9 @@ import { internalMutation } from "./_generated/server";
 import { Resend as ResendComponent } from "@convex-dev/resend";
 import { Resend } from "resend";
 
-const resend = new Resend("re_xxxxxxxxx");
+const resendSdk = new Resend("re_xxxxxxxxx");
 
 export const resendResendComponent = new ResendComponent(components.resend, {});
-
-await resend.emails.send({
-  from: "Acme <onboarding@resend.dev>",
-  to: ["delivered@resend.dev"],
-  subject: "hello world",
-  html: "<p>it works!</p>",
-});
 
 export const sendManualEmail = internalMutation({
   args: {},
@@ -330,7 +323,7 @@ export const sendManualEmail = internalMutation({
       ctx,
       { from, to, subject },
       async (emailId) => {
-        const data = await resend.emails.send({
+        const data = await resendSdk.emails.send({
           from,
           to,
           subject,
