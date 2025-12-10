@@ -159,7 +159,11 @@ export const vEmailEvent = v.union(
   v.object({
     type: v.literal("email.received"),
     created_at: v.string(),
-    data: v.object({ ...commonFields, attachments: v.array(attachment)}),
+    data: v.object({
+      ...commonFields,
+      message_id: v.string(),
+      attachments: v.optional(v.array(attachment)),
+    }),
   }),
 );
 

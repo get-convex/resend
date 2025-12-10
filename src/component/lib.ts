@@ -1,17 +1,22 @@
+import { RateLimiter } from "@convex-dev/rate-limiter";
+import { Workpool } from "@convex-dev/workpool";
+import { omit } from "convex-helpers";
+import { parse } from "convex-helpers/validators";
+import type { FunctionHandle } from "convex/server";
 import { v } from "convex/values";
+import { isDeepEqual } from "remeda";
+import { api, components, internal } from "./_generated/api.js";
+import { type Doc, type Id } from "./_generated/dataModel.js";
 import {
-  internalAction,
+  type ActionCtx,
+  internalAction, internalMutation,
+  internalQuery,
   mutation,
   type MutationCtx,
-  query,
-  internalQuery,
-  type ActionCtx,
+  query
 } from "./_generated/server.js";
-import { Workpool } from "@convex-dev/workpool";
-import { RateLimiter } from "@convex-dev/rate-limiter";
-import { api, components, internal } from "./_generated/api.js";
-import { internalMutation } from "./_generated/server.js";
-import { type Id, type Doc } from "./_generated/dataModel.js";
+import schema from "./schema.js";
+import type { EmailEvent, RunMutationCtx, RunQueryCtx } from "./shared.js";
 import {
   ACCEPTED_EVENT_TYPES,
   type RuntimeConfig,
@@ -20,12 +25,6 @@ import {
   vStatus,
   vTemplate,
 } from "./shared.js";
-import type { FunctionHandle } from "convex/server";
-import type { EmailEvent, RunMutationCtx, RunQueryCtx } from "./shared.js";
-import { isDeepEqual } from "remeda";
-import schema from "./schema.js";
-import { omit } from "convex-helpers";
-import { parse } from "convex-helpers/validators";
 import { assertExhaustive, attemptToParse } from "./utils.js";
 
 // Move some of these to options? TODO
@@ -679,11 +678,11 @@ async function createResendBatchPayload(
       reply_to: email.replyTo ? email.replyTo : undefined,
       headers: email.headers
         ? Object.fromEntries(
-            email.headers.map((h: { name: string; value: string }) => [
-              h.name,
-              h.value,
-            ]),
-          )
+          email.headers.map((h: { name: string; value: string }) => [
+            h.name,
+            h.value,
+          ]),
+        )
         : undefined,
     };
 
@@ -933,7 +932,9 @@ export const handleEmailEvent = mutation({
             ? event.data.bounce?.message
             : event.type === "email.failed"
               ? event.data.failed?.reason
-              : undefined,  
+              : event.type === "email.received"
+                ? event.data.message_id
+                : undefined,
       });
     }
 
@@ -957,7 +958,7 @@ async function enqueueCallbackIfExists(
   if (!lastOptions) {
     throw new Error("No last options found -- invariant");
   }
-  
+
   // Handle email.received events with separate callback
   if (event.type === "email.received" && lastOptions.options.onEmailReceivedEvent) {
     const handle = lastOptions.options.onEmailReceivedEvent.fnHandle as FunctionHandle<
@@ -972,7 +973,7 @@ async function enqueueCallbackIfExists(
     });
     return;
   }
-  
+
   // Handle other email events with standard callback
   if (lastOptions.options.onEmailEvent) {
     const handle = lastOptions.options.onEmailEvent.fnHandle as FunctionHandle<

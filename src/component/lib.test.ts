@@ -1,6 +1,6 @@
-import { expect, describe, it, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { api } from "./_generated/api.js";
-import type { EmailEvent } from "./shared.js";
+import { type Doc, type Id } from "./_generated/dataModel.js";
 import {
   createTestEventOfType,
   insertTestSentEmail,
@@ -8,7 +8,7 @@ import {
   setupTestLastOptions,
   type Tester,
 } from "./setup.test.js";
-import { type Doc, type Id } from "./_generated/dataModel.js";
+import type { EmailEvent } from "./shared.js";
 
 describe("handleEmailEvent", () => {
   let t: Tester;
@@ -246,6 +246,114 @@ describe("handleEmailEvent", () => {
     expect(updatedEmail.finalizedAt).toBe(Number.MAX_SAFE_INTEGER);
     expect(updatedEmail.complained).toBe(false);
     expect(updatedEmail.opened).toBe(false);
+  });
+
+  it("handles email.received event gracefully (no email record)", async () => {
+    event = createTestEventOfType("email.received");
+
+    // Should not throw an error even though there's no matching email
+    await exec();
+
+    // Email should remain unchanged since received events don't affect outbound emails
+    const updatedEmail = await getEmail();
+    expect(updatedEmail.status).toBe("sent");
+    expect(updatedEmail.finalizedAt).toBe(Number.MAX_SAFE_INTEGER);
+    expect(updatedEmail.complained).toBe(false);
+    expect(updatedEmail.opened).toBe(false);
+  });
+
+  it("creates delivery event for email.received when email exists", async () => {
+    event = createTestEventOfType("email.received");
+
+    await exec();
+
+    // Check that a delivery event was created
+    const events = await t.run(async (ctx) =>
+      ctx.db
+        .query("deliveryEvents")
+        .withIndex("by_emailId_eventType", (q) =>
+          q.eq("emailId", email._id).eq("eventType", "email.received"),
+        )
+        .collect(),
+    );
+    expect(events.length).toBe(1);
+    expect(events[0].eventType).toBe("email.received");
+    expect(events[0].resendId).toBe("test-resend-id-123");
+  });
+
+  it("validates email.received event structure with attachments", async () => {
+    event = createTestEventOfType("email.received", {
+      data: {
+        email_id: "test-resend-id-123",
+        created_at: "2024-02-22T23:41:11.894719+00:00",
+        from: "Acme <[email protected]>",
+        to: ["[email protected]"],
+        bcc: [],
+        cc: [],
+        message_id: "<example+123>",
+        subject: "Sending this example",
+        attachments: [
+          {
+            id: "2a0c9ce0-3112-4728-976e-47ddcd16a318",
+            filename: "avatar.png",
+            content_type: "image/png",
+            content_disposition: "inline",
+            content_id: "img001",
+          },
+          {
+            id: "3b1d0df1-4223-5839-087f-58eedd27b429",
+            filename: "document.pdf",
+            content_type: "application/pdf",
+            content_disposition: "attachment",
+            content_id: "doc001",
+          },
+        ],
+      },
+    });
+
+    // Should not throw an error with multiple attachments
+    await exec();
+
+    // Verify event was recorded
+    const events = await t.run(async (ctx) =>
+      ctx.db
+        .query("deliveryEvents")
+        .withIndex("by_emailId_eventType", (q) =>
+          q.eq("emailId", email._id).eq("eventType", "email.received"),
+        )
+        .collect(),
+    );
+    expect(events.length).toBe(1);
+  });
+
+  it("validates email.received event structure without attachments", async () => {
+    event = createTestEventOfType("email.received", {
+      data: {
+        email_id: "test-resend-id-123",
+        created_at: "2024-02-22T23:41:11.894719+00:00",
+        from: "sender@example.com",
+        to: ["[email protected]"],
+        bcc: [],
+        cc: [],
+        message_id: "<no-attachments-123>",
+        subject: "Plain text email",
+        attachments: undefined,
+      },
+    });
+
+    // Should not throw an error without attachments
+    await exec();
+
+    // Verify event was recorded
+    const events = await t.run(async (ctx) =>
+      ctx.db
+        .query("deliveryEvents")
+        .withIndex("by_emailId_eventType", (q) =>
+          q.eq("emailId", email._id).eq("eventType", "email.received"),
+        )
+        .collect(),
+    );
+    expect(events.length).toBe(1);
   });
 });
 
