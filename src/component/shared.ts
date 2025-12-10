@@ -84,7 +84,7 @@ const attachment = v.object({
   filename: v.string(),
   content_type: v.string(),
   content_disposition: v.string(),
-  content_id: v.string(),
+  content_id: v.optional(v.string()),
 });
 
 // Normalized webhook events coming from Resend.
