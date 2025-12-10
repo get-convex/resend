@@ -79,7 +79,7 @@ const commonFields = {
   ),
 };
 
-const attachment = v.object({
+export const attachment = v.object({
   id: v.string(),
   filename: v.string(),
   content_type: v.string(),
