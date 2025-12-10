@@ -162,7 +162,7 @@ export const vEmailEvent = v.union(
     data: v.object({
       ...commonFields,
       message_id: v.string(),
-      attachments: v.optional(v.array(attachment)),
+      attachments: v.array(attachment),
     }),
   }),
 );
