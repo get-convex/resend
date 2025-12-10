@@ -173,6 +173,33 @@ In addition to basic from/to/subject and html/plain text bodies, the `sendEmail`
 method allows you to provide a list of `replyTo` addresses, and other email
 headers.
 
+### Using Resend Templates
+
+You can use
+[Resend templates](https://resend.com/docs/dashboard/templates/introduction) to
+send emails with pre-designed templates from your Resend dashboard. To use a
+template, provide the template ID and any required template variables:
+
+```ts
+await resend.sendEmail(ctx, {
+  from: "Me <test@mydomain.com>",
+  to: "delivered@resend.dev",
+  subject: "Welcome to our app",
+  template: {
+    id: "my-template-id",
+    variables: {
+      name: "John Doe",
+      verificationLink: "https://example.com/verify?token=abc123",
+    },
+  },
+});
+```
+
+> [!IMPORTANT] You cannot use both `template` and `html`/`text` in the same
+> email. If you need to send dynamic HTML content, either use templates with
+> template variables, or use the `html`/`text` fields directly (optionally with
+> [React Email](#using-react-email)).
+
 ### Tracking, getting status, and cancelling emails
 
 The `sendEmail` method returns a branded type, `EmailId`. You can use this for a
@@ -185,6 +212,49 @@ few things:
 
 If the email has already been sent to the Resend API, it cannot be cancelled.
 Cancellations do not trigger an email event.
+
+#### Checking email status programmatically
+
+Use the `status` method to check an email's current state:
+
+```ts
+const emailStatus = await resend.status(ctx, emailId);
+if (emailStatus) {
+  console.log(emailStatus.status); // e.g., "delivered", "bounced", "sent"
+  console.log(emailStatus.bounced); // boolean
+  console.log(emailStatus.failed); // boolean
+  console.log(emailStatus.complained); // spam complaint (boolean)
+  console.log(emailStatus.deliveryDelayed); // boolean
+  console.log(emailStatus.opened); // if open tracking enabled (boolean)
+  console.log(emailStatus.clicked); // if click tracking enabled (boolean)
+  console.log(emailStatus.errorMessage); // error details (string | null)
+}
+```
+
+#### Viewing emails and webhook events in the dashboard
+
+You can view all email data directly in your Convex dashboard in the component's
+data view. Click the drop down with a puzzle piece that says app:
+
+![Component tables screenshot](./component_tables.png)
+
+1. **Emails table**: Navigate to your Convex dashboard → Data. Choose `resend`
+   from the component drop down then choose the `emails` table. This shows all
+   emails with their current status, recipients, subjects, and tracking
+   information.
+
+2. **Delivery Events table**: Navigate to Components → `resend` →
+   `deliveryEvents` table. This table stores all webhook events received from
+   Resend, including:
+   - `emailId`: Links back to the email in the emails table
+   - `resendId`: Resend's ID for the email
+   - `eventType`: The type of event (e.g., `email.delivered`, `email.bounced`,
+     `email.opened`, `email.clicked`, `email.complained`)
+   - `createdAt`: When the event occurred
+   - `message`: Additional details (e.g., bounce reasons)
+
+This is useful for debugging delivery issues, viewing email history, and
+understanding what happened with each email you sent.
 
 ### Data retention
 
@@ -309,7 +379,7 @@ import { Resend } from "resend";
 
 const resendSdk = new Resend("re_xxxxxxxxx");
 
-export const resendResendComponent = new ResendComponent(components.resend, {});
+export const resend = new ResendComponent(components.resend, {});
 
 export const sendManualEmail = internalMutation({
   args: {},
