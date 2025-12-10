@@ -85,7 +85,7 @@ const attachment = v.object({
   content_type: v.string(),
   content_disposition: v.string(),
   content_id: v.string(),
-})
+});
 
 // Normalized webhook events coming from Resend.
 export const vEmailEvent = v.union(
