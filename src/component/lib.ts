@@ -880,6 +880,12 @@ function computeEmailUpdateFromEvent(
     };
   }
 
+  if (event.type == "email.received") {
+    // email.received is an inbound email event, not relevant for outbound email tracking
+    // We can safely ignore it or just log it
+    return null;
+  }
+
   assertExhaustive(event);
   return null;
 }
@@ -927,7 +933,7 @@ export const handleEmailEvent = mutation({
             ? event.data.bounce?.message
             : event.type === "email.failed"
               ? event.data.failed?.reason
-              : undefined,
+              : undefined,  
       });
     }
 
@@ -951,6 +957,23 @@ async function enqueueCallbackIfExists(
   if (!lastOptions) {
     throw new Error("No last options found -- invariant");
   }
+  
+  // Handle email.received events with separate callback
+  if (event.type === "email.received" && lastOptions.options.onEmailReceivedEvent) {
+    const handle = lastOptions.options.onEmailReceivedEvent.fnHandle as FunctionHandle<
+      "mutation",
+      {
+        event: EmailEvent;
+      },
+      void
+    >;
+    await callbackPool.enqueueMutation(ctx, handle, {
+      event: event,
+    });
+    return;
+  }
+  
+  // Handle other email events with standard callback
   if (lastOptions.options.onEmailEvent) {
     const handle = lastOptions.options.onEmailEvent.fnHandle as FunctionHandle<
       "mutation",

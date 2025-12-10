@@ -29,9 +29,13 @@ export {
   vStatus,
   vTemplate,
 } from "../component/shared.js";
-export type { EmailEvent, Status, Template } from "../component/shared.js";
+export type { EmailEvent, ReceivedEmailEvent, Status, Template } from "../component/shared.js";
 export const vOnEmailEventArgs = v.object({
   id: vEmailId,
+  event: vEmailEvent,
+});
+
+export const vOnEmailReceivedEventArgs = v.object({
   event: vEmailEvent,
 });
 
@@ -94,6 +98,19 @@ export type ResendOptions = {
       event: EmailEvent;
     }
   > | null;
+
+  /**
+   * A mutation to run when an email is received (inbound email webhook).
+   * The mutation will be passed the received email event.
+   * Note: This is for inbound emails, not outbound email tracking.
+   */
+  onEmailReceivedEvent?: FunctionReference<
+    "mutation",
+    FunctionVisibility,
+    {
+      event: EmailEvent;
+    }
+  > | null;
 };
 
 async function configToRuntimeConfig(
@@ -106,6 +123,13 @@ async function configToRuntimeConfig(
       event: EmailEvent;
     }
   > | null,
+  onEmailReceivedEvent?: FunctionReference<
+    "mutation",
+    FunctionVisibility,
+    {
+      event: EmailEvent;
+    }
+  > | null,
 ): Promise<RuntimeConfig> {
   return {
     apiKey: config.apiKey,
@@ -114,6 +138,9 @@ async function configToRuntimeConfig(
     testMode: config.testMode,
     onEmailEvent: onEmailEvent
       ? { fnHandle: await createFunctionHandle(onEmailEvent) }
+      : undefined,
+    onEmailReceivedEvent: onEmailReceivedEvent
+      ? { fnHandle: await createFunctionHandle(onEmailReceivedEvent) }
       : undefined,
   };
 }
@@ -206,6 +233,14 @@ export class Resend {
     }
   > | null;
 
+  onEmailReceivedEvent?: FunctionReference<
+    "mutation",
+    FunctionVisibility,
+    {
+      event: EmailEvent;
+    }
+  > | null;
+
   /**
    * Creates a Resend component.
    *
@@ -228,6 +263,9 @@ export class Resend {
     };
     if (options?.onEmailEvent) {
       this.onEmailEvent = options.onEmailEvent;
+    }
+    if (options?.onEmailReceivedEvent) {
+      this.onEmailReceivedEvent = options.onEmailReceivedEvent;
     }
   }
 
@@ -309,7 +347,7 @@ export class Resend {
 
     // Traditional email
     const id = await ctx.runMutation(this.component.lib.sendEmail, {
-      options: await configToRuntimeConfig(this.config, this.onEmailEvent),
+      options: await configToRuntimeConfig(this.config, this.onEmailEvent, this.onEmailReceivedEvent),
       ...sendEmailArgs,
       to:
         typeof sendEmailArgs.to === "string"
@@ -496,6 +534,29 @@ export class Resend {
     return internalMutationGeneric({
       args: {
         id: vEmailId,
+        event: vEmailEvent,
+      },
+      handler,
+    });
+  }
+
+  /**
+   * Defines a mutation to run when an email is received (inbound email webhook).
+   *
+   * It is probably simpler to just define your mutation as a `internalMutation`
+   * and pass the `vOnEmailReceivedEventArgs` as the args than use this.
+   *
+   * @param handler The handler to run when an email is received.
+   * @returns The mutation to run when an email is received.
+   */
+  defineOnEmailReceivedEvent<DataModel extends GenericDataModel>(
+    handler: (
+      ctx: GenericMutationCtx<DataModel>,
+      args: { event: EmailEvent },
+    ) => Promise<void>,
+  ) {
+    return internalMutationGeneric({
+      args: {
         event: vEmailEvent,
       },
       handler,
