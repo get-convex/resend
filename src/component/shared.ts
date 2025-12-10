@@ -176,7 +176,7 @@ export const ACCEPTED_EVENT_TYPES = [
   "email.delivery_delayed",
   "email.opened",
   "email.clicked",
-  "email.received"
+  "email.received",
 ] as const;
 
 export const vEventType = v.union(literals(...ACCEPTED_EVENT_TYPES));
