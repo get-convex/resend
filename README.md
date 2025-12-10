@@ -173,6 +173,35 @@ In addition to basic from/to/subject and html/plain text bodies, the `sendEmail`
 method allows you to provide a list of `replyTo` addresses, and other email
 headers.
 
+### Using Resend Templates
+
+You can use
+[Resend templates](https://resend.com/docs/dashboard/templates/introduction) to
+send emails with pre-designed templates from your Resend dashboard. To use a
+template, provide the template ID and any required template variables:
+
+```ts
+await resend.sendEmail(ctx, {
+  from: "Me <test@mydomain.com>",
+  to: "delivered@resend.dev",
+  subject: "Welcome to our app",
+  template: {
+    id: "my-template-id",
+    variables: {
+      name: "John Doe",
+      verificationLink: "https://example.com/verify?token=abc123",
+    },
+  },
+});
+```
+
+> [!IMPORTANT] You cannot use both `template` and `html`/`text` in the same
+> email. When using a template, do not provide `html` or `text` fields - the
+> content comes from the template itself. If you need to send dynamic HTML
+> content, either use templates with template variables, or use the
+> `html`/`text` fields directly (optionally with
+> [React Email](#using-react-email)).
+
 ### Tracking, getting status, and cancelling emails
 
 The `sendEmail` method returns a branded type, `EmailId`. You can use this for a
