@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2
+
+- Improved confusing docs which didn't have correct usage for the resendSdk.
+
 ## 0.2.1
 
 - Support for templates and template variables.
