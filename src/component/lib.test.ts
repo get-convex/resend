@@ -248,7 +248,7 @@ describe("handleEmailEvent", () => {
     expect(updatedEmail.opened).toBe(false);
   });
 
-  it("handles email.received event gracefully (no email record)", async () => {
+  it("handles email.received event without modifying outbound emails", async () => {
     event = createTestEventOfType("email.received");
 
     // Should not throw an error even though there's no matching email
