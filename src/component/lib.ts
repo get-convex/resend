@@ -955,12 +955,9 @@ async function enqueueCallbackIfExists(
   event: EmailEvent,
 ) {
   const lastOptions = await ctx.db.query("lastOptions").unique();
-  if (!lastOptions) {
-    throw new Error("No last options found -- invariant");
-  }
 
   // Handle email.received events with separate callback
-  if (event.type === "email.received" && lastOptions.options.onEmailReceivedEvent) {
+  if (event.type === "email.received" && lastOptions?.options.onEmailReceivedEvent) {
     const handle = lastOptions.options.onEmailReceivedEvent.fnHandle as FunctionHandle<
       "mutation",
       {
@@ -973,6 +970,11 @@ async function enqueueCallbackIfExists(
     });
     return;
   }
+
+  if (!lastOptions) {
+    throw new Error("No last options found -- invariant");
+  }
+
 
   // Handle other email events with standard callback
   if (lastOptions.options.onEmailEvent) {
