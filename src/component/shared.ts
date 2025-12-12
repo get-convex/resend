@@ -79,7 +79,7 @@ const commonFields = {
   ),
 };
 
-const attachment = v.object({
+export const attachment = v.object({
   id: v.string(),
   filename: v.string(),
   content_type: v.string(),
@@ -162,7 +162,7 @@ export const vEmailEvent = v.union(
     data: v.object({
       ...commonFields,
       message_id: v.string(),
-      attachments: v.optional(v.array(attachment)),
+      attachments: v.array(attachment),
     }),
   }),
 );
