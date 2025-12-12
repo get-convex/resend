@@ -1,13 +1,14 @@
 /// <reference types="vite/client" />
+
+import { convexTest } from "convex-test";
 import { test } from "vitest";
+import type { Doc } from "./_generated/dataModel.js";
+import schema from "./schema.js";
 import type {
   EventEventOfType,
   EventEventTypes,
   RuntimeConfig,
 } from "./shared.js";
-import { convexTest } from "convex-test";
-import schema from "./schema.js";
-import type { Doc } from "./_generated/dataModel.js";
 import { assertExhaustive } from "./utils.js";
 
 export const modules = import.meta.glob("./**/*.*s");
@@ -19,7 +20,7 @@ export const setupTest = () => {
 
 export type Tester = ReturnType<typeof setupTest>;
 
-test("setup", () => {});
+test("setup", () => { });
 
 export const createTestEventOfType = <T extends EventEventTypes>(
   type: T,
@@ -144,6 +145,25 @@ export const createTestEventOfType = <T extends EventEventTypes>(
         failed: {
           reason: "SMTP server rejected the email",
         },
+      },
+    });
+
+  if (type === "email.received")
+    return applyOverrides({
+      ...baseEvent,
+      type: "email.received",
+      data: {
+        ...baseData,
+        message_id: "<test-message-id-12345@example.com>",
+        attachments: [
+          {
+            id: "2a0c9ce0-3112-4728-976e-47ddcd16a318",
+            filename: "avatar.png",
+            content_type: "image/png",
+            content_disposition: "inline",
+            content_id: "img001",
+          },
+        ],
       },
     });
 

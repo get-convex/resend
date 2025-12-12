@@ -11,6 +11,11 @@ export const onEmailEvent = v.object({
   fnHandle: v.string(),
 });
 
+// Validator for the onEmailReceivedEvent option.
+export const onEmailReceivedEvent = v.object({
+  fnHandle: v.string(),
+});
+
 // Validator for the status of an email.
 export const vStatus = v.union(
   v.literal("waiting"),
@@ -38,6 +43,7 @@ export const vOptions = v.object({
   apiKey: v.string(),
   testMode: v.boolean(),
   onEmailEvent: v.optional(onEmailEvent),
+  onEmailReceivedEvent: v.optional(onEmailReceivedEvent),
 });
 
 export type RuntimeConfig = Infer<typeof vOptions>;
@@ -72,6 +78,14 @@ const commonFields = {
     ),
   ),
 };
+
+export const attachment = v.object({
+  id: v.string(),
+  filename: v.string(),
+  content_type: v.string(),
+  content_disposition: v.string(),
+  content_id: v.optional(v.string()),
+});
 
 // Normalized webhook events coming from Resend.
 export const vEmailEvent = v.union(
@@ -142,6 +156,15 @@ export const vEmailEvent = v.union(
       }),
     }),
   }),
+  v.object({
+    type: v.literal("email.received"),
+    created_at: v.string(),
+    data: v.object({
+      ...commonFields,
+      message_id: v.string(),
+      attachments: v.array(attachment),
+    }),
+  }),
 );
 
 export const ACCEPTED_EVENT_TYPES = [
@@ -153,6 +176,7 @@ export const ACCEPTED_EVENT_TYPES = [
   "email.delivery_delayed",
   "email.opened",
   "email.clicked",
+  "email.received",
 ] as const;
 
 export const vEventType = v.union(literals(...ACCEPTED_EVENT_TYPES));
@@ -163,6 +187,8 @@ export type EventEventOfType<T extends EventEventTypes> = Extract<
   EmailEvent,
   { type: T }
 >;
+
+export type ReceivedEmailEvent = EventEventOfType<"email.received">;
 
 /* Type utils follow */
 
