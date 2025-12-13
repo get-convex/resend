@@ -1,11 +1,12 @@
 {
-  "name": "@convex-dev/resend",
+  "name": "@the-untraceable/convex-resend",
   "description": "A resend component for Convex.",
-  "repository": "github:get-convex/resend",
-  "homepage": "https://github.com/get-convex/resend#readme",
+  "private": false,
+  "repository": "github:theuntraceable/convex-resend",
+  "homepage": "https://github.com/theuntraceable/convex-resend#readme",
   "bugs": {
     "email": "support@convex.dev",
-    "url": "https://github.com/get-convex/resend/issues"
+    "url": "https://github.com/theuntraceable/convex-resend/issues"
   },
   "version": "0.2.1",
   "license": "Apache-2.0",
