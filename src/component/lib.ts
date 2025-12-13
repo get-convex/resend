@@ -1078,3 +1078,12 @@ export const getSentEmailsTo = query({
     return emails;
   }
 })
+
+export const getEmailById = query({
+  args: { emailId: v.id("emails") },
+  handler: async (ctx, args) => {
+    const email = await ctx.db.get(args.emailId);
+
+    return email;
+  },
+})
