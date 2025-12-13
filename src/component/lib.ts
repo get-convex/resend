@@ -143,8 +143,9 @@ export const sendEmail = mutation({
   returns: v.id("emails"),
   handler: async (ctx, args) => {
     // We only allow test emails in test mode.
+    const allReceivers = [...args.to, ...(args.cc ?? []), ...(args.bcc ?? [])];
     if (args.options.testMode) {
-      for (const to of [...args.to, ...(args.cc ?? []), ...(args.bcc ?? [])]) {
+      for (const to of allReceivers) {
         if (!isTestEmail(to)) {
           throw new Error(
             `Test mode is enabled, but email address is not a valid resend test address. Did you want to set testMode: false in your ResendOptions?`,
@@ -211,6 +212,12 @@ export const sendEmail = mutation({
       finalizedAt: FINALIZED_EPOCH,
     });
 
+    for (const recipient of allReceivers) {
+      await ctx.db.insert("emailsWithRecipients", {
+        emailId,
+        recipient,
+      });
+    }
     // Ensure there is a worker running to grab batches of emails.
     await scheduleBatchRun(ctx, args.options);
     return emailId;
@@ -1038,3 +1045,36 @@ export const cleanupAbandonedEmails = mutation({
     }
   },
 });
+
+export const getSentEmailsByFrom = query({
+  args: { from: v.string() },
+  handler: async (ctx, args) => {
+    const emails = await ctx.db.query("emails").withIndex(
+      "by_from",
+      q => q.eq("from", args.from).eq("status", "sent")
+    ).collect()
+    return emails;
+  },
+})
+
+export const getSentEmailsTo = query({
+  args: {
+    to: v.union(v.string(), v.array(v.string())),
+  },
+  handler: async (ctx, args) => {
+    const toAddresses = Array.isArray(args.to) ? args.to : [args.to];
+    const emails: Doc<"emails">[] = [];
+    for (const toAddress of toAddresses) {
+      const results = await ctx.db.query("emailsWithRecipients").withIndex(
+        "by_recipient",
+        q => q.eq("recipient", toAddress)
+      ).collect();
+      const foundEmails = await Promise.all(results.map(async (r) => {
+        const email = await ctx.db.get(r.emailId);
+        return email;
+      }));
+      emails.push(...foundEmails.filter((e): e is Doc<"emails"> => e !== null));
+    }
+    return emails;
+  }
+})
