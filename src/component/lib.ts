@@ -580,6 +580,16 @@ export const callResendAPIWithBatch = internalAction({
   },
 });
 
+/**
+ * Mark one or more emails as failed.
+ *
+ * Patches the specified `emails` documents (when their status is `queued`) to
+ * set their status to `failed`, store an `errorMessage`, and set `finalizedAt`.
+ *
+ * Args:
+ * - `emailIds`: Array of `emails` document ids to mark as failed.
+ * - `errorMessage`: Human-readable explanation of the failure.
+ */
 export const markEmailsFailed = internalMutation({
   args: {
     emailIds: v.array(v.id("emails")),
@@ -1046,6 +1056,15 @@ export const cleanupAbandonedEmails = mutation({
   },
 });
 
+/**
+ * Fetch all emails sent from a given sender address.
+ *
+ * Returns an array of `emails` documents whose `from` field matches the
+ * provided address and whose status is `sent`.
+ *
+ * Args:
+ * - `from`: The sender email address to filter by.
+ */
 export const getSentEmailsByFrom = query({
   args: { from: v.string() },
   handler: async (ctx, args) => {
@@ -1057,6 +1076,15 @@ export const getSentEmailsByFrom = query({
   },
 })
 
+  /**
+ * Fetch all emails that were sent to one or more recipient addresses.
+ *
+ * Accepts either a single recipient string or an array of recipient
+ * addresses and returns the matching `emails` documents.
+ *
+ * Args:
+ * - `to`: A recipient email address or an array of addresses to search for.
+ */
 export const getSentEmailsTo = query({
   args: {
     to: v.union(v.string(), v.array(v.string())),
@@ -1079,6 +1107,14 @@ export const getSentEmailsTo = query({
   }
 })
 
+/**
+ * Retrieve an `emails` document by id.
+ *
+ * Returns the email document or `null` if it does not exist.
+ *
+ * Args:
+ * - `emailId`: The id of the `emails` document to fetch.
+ */
 export const getEmailById = query({
   args: { emailId: v.id("emails") },
   handler: async (ctx, args) => {
