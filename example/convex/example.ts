@@ -6,6 +6,9 @@ import {
 import { components, internal } from "./_generated/api";
 import { Resend, vOnEmailEventArgs } from "@convex-dev/resend";
 import { v } from "convex/values";
+import { Resend as ResendSdk, Tag} from "resend";
+
+const resendSdk = new ResendSdk(process.env.RESEND_API_KEY!);
 
 export const resend: Resend = new Resend(components.resend, {
   onEmailEvent: internal.example.handleEmailEvent,
@@ -212,18 +215,15 @@ export const sendManualEmail = internalAction({
     const emailPayload: Record<string, unknown> = {
       from,
       to,
-      headers: [
-        {
-          name: "Idempotency-Key",
-          value: "", // Will be set in callback
-        },
-      ],
+      headers: {
+        "Idempotency-Key": "", // Will be set in callback
+      },
       tags: [
         {
           name: "category",
           value: "confirm_email",
         },
-      ],
+      ] as Tag[],
     };
 
     // Add either template or content
@@ -249,17 +249,22 @@ export const sendManualEmail = internalAction({
       async (emailId) => {
         // Set the idempotency key
         (emailPayload.headers as Array<{ name: string; value: string }>)[0].value = emailId;
-
-        const data = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(emailPayload),
+        const {data, error} = await resendSdk.emails.send({
+          from,
+          to,
+          subject,
+          html: emailPayload.html as string,
+          text: emailPayload.text as string,
+          headers: emailPayload.headers as Record<string, string>,
+          tags: emailPayload.tags as Tag[],
         });
-        const json = await data.json();
-        return json.id;
+        if (error) {
+          throw new Error(error.message);
+        }
+        if (!data.id) {
+          throw new Error("No id returned from Resend");
+        }
+        return data.id!;
       },
     );
     return emailId;

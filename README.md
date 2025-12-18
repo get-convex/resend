@@ -395,7 +395,7 @@ export const sendManualEmail = internalAction({
       ctx,
       { from, to, subject },
       async (emailId) => {
-        const data = await resendSdk.emails.send({
+        const {data, error} = await resendSdk.emails.send({
           from,
           to,
           subject,
@@ -404,6 +404,9 @@ export const sendManualEmail = internalAction({
             "Idempotency-Key": emailId,
           },
         });
+        if (error) {
+          throw new Error(`[Email] Failed to send: ${error.message}`);
+        }
         return data.id!;
       },
     );
