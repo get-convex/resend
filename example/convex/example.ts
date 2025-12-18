@@ -191,43 +191,72 @@ export const handleEmailEvent = internalMutation({
 export const sendManualEmail = internalAction({
   args: {
     from: v.optional(v.string()),
-    to: v.optional(v.string()),
+    to: v.optional(v.union(v.string(), v.array(v.string()))),
     subject: v.optional(v.string()),
     text: v.optional(v.string()),
+    html: v.optional(v.string()),
+    template: v.optional(
+      v.object({
+        id: v.string(),
+        variables: v.optional(v.record(v.string(), v.union(v.string(), v.number()))),
+      })
+    ),
   },
   handler: async (ctx, args) => {
     const from = args.from ?? "onboarding@resend.dev";
     const to = args.to ?? "delivered@resend.dev";
     const subject = args.subject ?? "Test Email";
     const text = args.text ?? "This is a test email with a tag";
+
+    // Build the email payload
+    const emailPayload: Record<string, unknown> = {
+      from,
+      to,
+      headers: [
+        {
+          name: "Idempotency-Key",
+          value: "", // Will be set in callback
+        },
+      ],
+      tags: [
+        {
+          name: "category",
+          value: "confirm_email",
+        },
+      ],
+    };
+
+    // Add either template or content
+    if (args.template) {
+      emailPayload.template = args.template;
+      // Subject is optional when using templates
+      if (subject) {
+        emailPayload.subject = subject;
+      }
+    } else {
+      emailPayload.subject = subject;
+      if (args.html) {
+        emailPayload.html = args.html;
+      }
+      if (text) {
+        emailPayload.text = text;
+      }
+    }
+
     const emailId = await resend.sendEmailManually(
       ctx,
       { from, to, subject },
       async (emailId) => {
+        // Set the idempotency key
+        (emailPayload.headers as Array<{ name: string; value: string }>)[0].value = emailId;
+
         const data = await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            from,
-            to,
-            subject,
-            text,
-            headers: [
-              {
-                name: "Idempotency-Key",
-                value: emailId,
-              },
-            ],
-            tags: [
-              {
-                name: "category",
-                value: "confirm_email",
-              },
-            ],
-          }),
+          body: JSON.stringify(emailPayload),
         });
         const json = await data.json();
         return json.id;
