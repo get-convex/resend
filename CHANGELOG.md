@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.3
+
+- Fixed example code for destructuring resendSDK's response
+- Fixed receiving webhooks responses for emails if you only use the manual
+  method
+
 ## 0.2.2
 
 - Improved confusing docs which didn't have correct usage for the resendSdk.
