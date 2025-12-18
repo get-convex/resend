@@ -948,8 +948,9 @@ async function enqueueCallbackIfExists(
   event: EmailEvent,
 ) {
   const lastOptions = await ctx.db.query("lastOptions").unique();
+  // lastOptions may not exist if the user only uses sendEmailManually
   if (!lastOptions) {
-    throw new Error("No last options found -- invariant");
+    return;
   }
   if (lastOptions.options.onEmailEvent) {
     const handle = lastOptions.options.onEmailEvent.fnHandle as FunctionHandle<

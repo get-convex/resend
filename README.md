@@ -10,7 +10,7 @@ Features:
 - Queueing: Send as many emails as you want, as fast as you want—they'll all be
   delivered (eventually).
 - Batching: Automatically batches large groups of emails and sends them to
-  Resend efficiently.
+  Resend's `/emails/batch` endpoint efficiently.
 - Durable execution: Uses Convex workpools to ensure emails are eventually
   delivered, even in the face of temporary failures or network outages.
 - Idempotency: Manages Resend idempotency keys to guarantee emails are delivered
@@ -367,13 +367,15 @@ export const sendEmail = action({
 
 If you need something that the component doesn't provide (it is currently
 limited by what is supported by the batch API in Resend), you can send emails
-manually. This is the preferred approach, because you have fine-grained control
-over the email sending process, and can track its progress manually using the
-component's public APIs.
+manually using `sendEmailManually`. Unlike `sendEmail` which enqueues emails
+and sends them in batches via the `/emails/batch` endpoint, `sendEmailManually`
+calls Resend's `/emails` endpoint directly without enqueueing. This gives you
+fine-grained control over the email sending process while still tracking its
+progress using the component's status and webhook APIs.
 
 ```ts
 import { components, internal } from "./_generated/api";
-import { internalMutation } from "./_generated/server";
+import { internalAction } from "./_generated/server";
 import { Resend as ResendComponent } from "@convex-dev/resend";
 import { Resend } from "resend";
 
@@ -381,7 +383,7 @@ const resendSdk = new Resend("re_xxxxxxxxx");
 
 export const resend = new ResendComponent(components.resend, {});
 
-export const sendManualEmail = internalMutation({
+export const sendManualEmail = internalAction({
   args: {},
   handler: async (ctx, args) => {
     const from = "Acme <onboarding@resend.dev>";
@@ -393,21 +395,25 @@ export const sendManualEmail = internalMutation({
       ctx,
       { from, to, subject },
       async (emailId) => {
-        const data = await resendSdk.emails.send({
+        const {data, error} = await resendSdk.emails.send({
           from,
           to,
           subject,
           html,
-          headers: [
-            {
-              name: "Idempotency-Key",
-              value: emailId,
-            },
-          ],
+          headers: {
+            "Idempotency-Key": emailId,
+          },
         });
-        return data.id;
+        if (error) {
+          throw new Error(`[Email] Failed to send: ${error.message}`);
+        }
+        return data.id!;
       },
     );
   },
 });
 ```
+
+Use `sendEmailManually` when you need features not supported by the batch API,
+such as attachments, or when you want to send an email immediately without
+waiting for the batching system.
