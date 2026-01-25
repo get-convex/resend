@@ -163,6 +163,15 @@ Check out the [docstrings](./src/client/index.ts), but notable options include:
   develop your project, `testMode` is default **true**. You need to explicitly
   set this to `false` for the component to allow you to enqueue emails to
   artibrary addresses.
+- `rateLimitPerSecond`: The rate limit in requests per second for the Resend
+  API. Defaults to 2 requests per second, which is the default Resend rate
+  limit. If your Resend account has a higher rate limit (e.g., 100 requests per
+  second), set this value accordingly. For example:
+  ```ts
+  export const resend: Resend = new Resend(components.resend, {
+    rateLimitPerSecond: 100,
+  });
+  ```
 - `onEmailEvent`: Your email event callback, as outlined above! Check out the
   [docstrings](./src/client/index.ts) for details on the events that are
   emitted.

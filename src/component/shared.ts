@@ -37,6 +37,7 @@ export const vOptions = v.object({
   retryAttempts: v.number(),
   apiKey: v.string(),
   testMode: v.boolean(),
+  rateLimitPerSecond: v.optional(v.number()),
   onEmailEvent: v.optional(onEmailEvent),
 });
 
