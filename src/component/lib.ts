@@ -443,7 +443,8 @@ export const makeBatch = internalMutation({
     }
 
     // Okay, let's calculate rate limiting as best we can globally in this distributed system.
-    const delay = await getDelay(ctx, options.rateLimitMs);
+    const rateLimitMs = options.rateLimitMs ?? RESEND_ONE_CALL_EVERY_MS;
+    const delay = await getDelay(ctx, rateLimitMs);
 
     // Give the batch to the workpool! It will call the Resend batch API
     // in a durable background action.
@@ -727,15 +728,16 @@ async function getDelay(
   const lastCallTime = lastOptions?.lastApiCallTime ?? 0;
   const elapsed = now - lastCallTime;
   const delay = Math.max(0, rateLimitMs - elapsed);
+  const totalDelay = delay + jitter;
 
-  // Reserve the slot by updating timestamp
+  // Reserve the slot by updating timestamp (include jitter to avoid under-reservation)
   if (lastOptions) {
     await ctx.db.patch(lastOptions._id, {
-      lastApiCallTime: now + delay,
+      lastApiCallTime: now + totalDelay,
     });
   }
 
-  return delay + jitter;
+  return totalDelay;
 }
 
 // Helper to fetch content by id. We'll use batch apis here to avoid lots of action->query calls.
