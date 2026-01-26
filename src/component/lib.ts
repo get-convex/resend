@@ -21,7 +21,7 @@ import {
   vTemplate,
 } from "./shared.js";
 import type { FunctionHandle } from "convex/server";
-import type { EmailEvent, RunMutationCtx, RunQueryCtx } from "./shared.js";
+import type { EmailEvent } from "./shared.js";
 import { isDeepEqual } from "remeda";
 import schema from "./schema.js";
 import { omit } from "convex-helpers";
@@ -81,7 +81,7 @@ const callbackPool = new Workpool(components.callbackWorkpool, {
 });
 
 // We rate limit our calls to the Resend API.
-// FUTURE -- make this rate configurable if an account ups its sending rate with Resend.
+// This is used for the default rate limit (600ms). Custom rates use timestamp-based limiting.
 const resendApiRateLimiter = new RateLimiter(components.rateLimiter, {
   resendApi: {
     kind: "fixed window",
@@ -443,7 +443,7 @@ export const makeBatch = internalMutation({
     }
 
     // Okay, let's calculate rate limiting as best we can globally in this distributed system.
-    const delay = await getDelay(ctx);
+    const delay = await getDelay(ctx, options.rateLimitMs);
 
     // Give the batch to the workpool! It will call the Resend batch API
     // in a durable background action.
@@ -707,13 +707,35 @@ async function createResendBatchPayload(
 }
 
 const FIXED_WINDOW_DELAY = 100;
-async function getDelay(ctx: RunMutationCtx & RunQueryCtx): Promise<number> {
-  const limit = await resendApiRateLimiter.limit(ctx, "resendApi", {
-    reserve: true,
-  });
-  //console.log(`RL: ${limit.ok} ${limit.retryAfter}`);
+async function getDelay(
+  ctx: MutationCtx,
+  rateLimitMs: number,
+): Promise<number> {
   const jitter = Math.random() * FIXED_WINDOW_DELAY;
-  return limit.retryAfter ? limit.retryAfter + jitter : 0;
+
+  // Use default rate limiter for standard rate (most users)
+  if (rateLimitMs === RESEND_ONE_CALL_EVERY_MS) {
+    const limit = await resendApiRateLimiter.limit(ctx, "resendApi", {
+      reserve: true,
+    });
+    return limit.retryAfter ? limit.retryAfter + jitter : 0;
+  }
+
+  // For custom rates, use timestamp-based approach
+  const lastOptions = await ctx.db.query("lastOptions").unique();
+  const now = Date.now();
+  const lastCallTime = lastOptions?.lastApiCallTime ?? 0;
+  const elapsed = now - lastCallTime;
+  const delay = Math.max(0, rateLimitMs - elapsed);
+
+  // Reserve the slot by updating timestamp
+  if (lastOptions) {
+    await ctx.db.patch(lastOptions._id, {
+      lastApiCallTime: now + delay,
+    });
+  }
+
+  return delay + jitter;
 }
 
 // Helper to fetch content by id. We'll use batch apis here to avoid lots of action->query calls.
