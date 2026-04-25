@@ -28,7 +28,7 @@ describe("handleEmailEvent", () => {
 
   const getEmail = () =>
     t.run(async (ctx) => {
-      const _email = await ctx.db.get(email._id);
+      const _email = await ctx.db.get("emails", email._id);
       if (!_email) throw new Error("Email not found");
       return _email;
     });
@@ -277,7 +277,7 @@ describe("sendEmail with templates", () => {
     });
 
     const email = await t.run(async (ctx) => {
-      const _email = await ctx.db.get(emailId);
+      const _email = await ctx.db.get("emails", emailId);
       if (!_email) throw new Error("Email not found");
       return _email;
     });
@@ -336,7 +336,7 @@ describe("sendEmail with templates", () => {
     });
 
     const email = await t.run(async (ctx) => {
-      const _email = await ctx.db.get(emailId);
+      const _email = await ctx.db.get("emails", emailId);
       if (!_email) throw new Error("Email not found");
       return _email;
     });

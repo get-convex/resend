@@ -62,6 +62,7 @@
     "convex-helpers": "^0.1.106"
   },
   "devDependencies": {
+    "@convex-dev/eslint-plugin": "^2.0.0",
     "@edge-runtime/vm": "5.0.0",
     "@eslint/eslintrc": "3.3.3",
     "@eslint/js": "9.39.2",

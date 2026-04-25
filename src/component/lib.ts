@@ -268,7 +268,7 @@ export const updateManualEmail = mutation({
       args.status === "failed" || args.status === "cancelled"
         ? Date.now()
         : undefined;
-    await ctx.db.patch(args.emailId, {
+    await ctx.db.patch("emails", args.emailId, {
       status: args.status,
       resendId: args.resendId,
       errorMessage: args.errorMessage,
@@ -285,14 +285,14 @@ export const cancelEmail = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const email = await ctx.db.get(args.emailId);
+    const email = await ctx.db.get("emails", args.emailId);
     if (!email) {
       throw new Error("Email not found");
     }
     if (email.status !== "waiting" && email.status !== "queued") {
       throw new Error("Email has already been sent");
     }
-    await ctx.db.patch(args.emailId, {
+    await ctx.db.patch("emails", args.emailId, {
       status: "cancelled",
       finalizedAt: Date.now(),
     });
@@ -318,7 +318,7 @@ export const getStatus = query({
     v.null(),
   ),
   handler: async (ctx, args) => {
-    const email = await ctx.db.get(args.emailId);
+    const email = await ctx.db.get("emails", args.emailId);
     if (!email) {
       return null;
     }
@@ -351,15 +351,15 @@ export const get = query({
     v.null(),
   ),
   handler: async (ctx, args) => {
-    const email = await ctx.db.get(args.emailId);
+    const email = await ctx.db.get("emails", args.emailId);
     if (!email) {
       return null;
     }
     const html = email.html
-      ? new TextDecoder().decode((await ctx.db.get(email.html))?.content)
+      ? new TextDecoder().decode((await ctx.db.get("content", email.html))?.content)
       : undefined;
     const text = email.text
-      ? new TextDecoder().decode((await ctx.db.get(email.text))?.content)
+      ? new TextDecoder().decode((await ctx.db.get("content", email.text))?.content)
       : undefined;
     return {
       ...omit(email, ["html", "text", "_id", "_creationTime"]),
@@ -380,7 +380,7 @@ async function scheduleBatchRun(ctx: MutationCtx, options: RuntimeConfig) {
       options,
     });
   } else if (!isDeepEqual(lastOptions.options, options)) {
-    await ctx.db.replace(lastOptions._id, {
+    await ctx.db.replace("lastOptions", lastOptions._id, {
       options,
     });
   }
@@ -437,7 +437,7 @@ export const makeBatch = internalMutation({
 
     // Mark the emails as queued.
     for (const email of emails) {
-      await ctx.db.patch(email._id, {
+      await ctx.db.patch("emails", email._id, {
         status: "queued",
       });
     }
@@ -491,7 +491,7 @@ async function reschedule(ctx: MutationCtx, emailsLeft: boolean) {
     if (!batchRun) {
       throw new Error("No batch run found -- invariant");
     }
-    await ctx.db.delete(batchRun._id);
+    await ctx.db.delete("nextBatchRun", batchRun._id);
   } else {
     const segment = getSegment(Date.now() + BASE_BATCH_DELAY);
     await ctx.scheduler.runAfter(BASE_BATCH_DELAY, internal.lib.makeBatch, {
@@ -592,11 +592,11 @@ async function markEmailsFailedHandler(
 ) {
   await Promise.all(
     args.emailIds.map(async (emailId) => {
-      const email = await ctx.db.get(emailId);
+      const email = await ctx.db.get("emails", emailId);
       if (!email || email.status !== "queued") {
         return;
       }
-      await ctx.db.patch(emailId, {
+      await ctx.db.patch("emails", emailId, {
         status: "failed",
         errorMessage: args.errorMessage,
         finalizedAt: Date.now(),
@@ -618,7 +618,7 @@ export const onEmailComplete = emailPool.defineOnComplete({
       const { emailIds, resendIds } = result;
       await Promise.all(
         emailIds.map((emailId, i) =>
-          ctx.db.patch(emailId, {
+          ctx.db.patch("emails", emailId, {
             status: "sent",
             resendId: resendIds[i],
           }),
@@ -632,11 +632,11 @@ export const onEmailComplete = emailPool.defineOnComplete({
     } else if (args.result.kind === "canceled") {
       await Promise.all(
         args.context.emailIds.map(async (emailId) => {
-          const email = await ctx.db.get(emailId);
+          const email = await ctx.db.get("emails", emailId);
           if (!email || email.status !== "queued") {
             return;
           }
-          await ctx.db.patch(emailId, {
+          await ctx.db.patch("emails", emailId, {
             status: "cancelled",
             errorMessage: "Resend API batch job was cancelled",
             finalizedAt: Date.now(),
@@ -724,7 +724,7 @@ export const getAllContentByIds = internalQuery({
     const contentMap = [];
     const promises = [];
     for (const contentId of args.contentIds) {
-      promises.push(ctx.db.get(contentId));
+      promises.push(ctx.db.get("content", contentId));
     }
     const docs = await Promise.all(promises);
     for (const doc of docs) {
@@ -742,7 +742,7 @@ export const getAllContentByIds = internalQuery({
 export const getEmailsByIds = internalQuery({
   args: { emailIds: v.array(v.id("emails")) },
   handler: async (ctx, args) => {
-    const emails = await Promise.all(args.emailIds.map((id) => ctx.db.get(id)));
+    const emails = await Promise.all(args.emailIds.map((id) => ctx.db.get("emails", id)));
 
     // Some emails might be missing b/c they were cancelled long ago and already
     // cleaned up because the retention period has passed.
@@ -934,7 +934,7 @@ export const handleEmailEvent = mutation({
     // Apply the event directly to update email state if needed
     const updated = computeEmailUpdateFromEvent(email, event);
     if (updated) {
-      await ctx.db.replace(email._id, updated);
+      await ctx.db.replace("emails", email._id, updated);
     }
 
     // Keep callback behavior (invoked with current email state and raw event)
@@ -969,19 +969,19 @@ async function enqueueCallbackIfExists(
 }
 
 async function cleanupEmail(ctx: MutationCtx, email: Doc<"emails">) {
-  await ctx.db.delete(email._id);
+  await ctx.db.delete("emails", email._id);
   if (email.text) {
-    await ctx.db.delete(email.text);
+    await ctx.db.delete("content", email.text);
   }
   if (email.html) {
-    await ctx.db.delete(email.html);
+    await ctx.db.delete("content", email.html);
   }
   const events = await ctx.db
     .query("deliveryEvents")
     .withIndex("by_emailId_eventType", (q) => q.eq("emailId", email._id))
     .collect();
   for (const event of events) {
-    await ctx.db.delete(event._id);
+    await ctx.db.delete("deliveryEvents", event._id);
   }
 }
 

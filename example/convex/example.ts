@@ -139,6 +139,7 @@ export const insertExpectation = internalMutation({
 });
 
 export const isEmpty = internalQuery({
+  args: {},
   returns: v.boolean(),
   handler: async (ctx) => {
     return (await ctx.db.query("testEmails").first()) === null;
@@ -168,7 +169,7 @@ export const handleEmailEvent = internalMutation({
         return;
       }
       // All good. Delivered email was delivered.
-      await ctx.db.delete(testEmail._id);
+      await ctx.db.delete("testEmails", testEmail._id);
     }
     if (args.event.type === "email.bounced") {
       if (testEmail.expectation !== "bounced") {
@@ -177,7 +178,7 @@ export const handleEmailEvent = internalMutation({
         );
       }
       // All good. Bounced email was bounced.
-      await ctx.db.delete(testEmail._id);
+      await ctx.db.delete("testEmails", testEmail._id);
     }
     if (args.event.type === "email.complained") {
       if (testEmail.expectation !== "complained") {
@@ -186,7 +187,7 @@ export const handleEmailEvent = internalMutation({
         );
       }
       // All good. Complained email was complained.
-      await ctx.db.delete(testEmail._id);
+      await ctx.db.delete("testEmails", testEmail._id);
     }
   },
 });
