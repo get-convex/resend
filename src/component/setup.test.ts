@@ -176,7 +176,7 @@ export const insertTestEmail = (
 ) =>
   t.run(async (ctx) => {
     const id = await ctx.db.insert("emails", overrides);
-    const email = await ctx.db.get(id);
+    const email = await ctx.db.get("emails", id);
     if (!email) throw new Error("Email not found");
     return email;
   });
