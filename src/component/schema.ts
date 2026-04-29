@@ -14,6 +14,7 @@ export default defineSchema({
   }),
   lastOptions: defineTable({
     options: vOptions,
+    lastApiCallTime: v.optional(v.number()),
   }),
   deliveryEvents: defineTable({
     emailId: v.id("emails"),
