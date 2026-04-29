@@ -34,10 +34,10 @@ const BASE_BATCH_DELAY = 1000;
 const BATCH_SIZE = 100;
 const EMAIL_POOL_SIZE = 4;
 const CALLBACK_POOL_SIZE = 4;
-const RESEND_ONE_CALL_EVERY_MS = 600; // Half the stated limit, but it keeps us sane.
 const FINALIZED_EMAIL_RETENTION_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 const FINALIZED_EPOCH = Number.MAX_SAFE_INTEGER;
 const ABANDONED_EMAIL_RETENTION_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
+const DEFAULT_RATE_LIMIT_PER_SECOND = 2;
 
 const RESEND_TEST_EMAILS = ["delivered", "bounced", "complained"];
 
@@ -70,7 +70,7 @@ function getSegment(now: number) {
   return Math.floor(now / SEGMENT_MS);
 }
 
-// Four threads is more than enough, especially given the low rate limiting.
+// Four threads is more than enough for the email sending workpool.
 const emailPool = new Workpool(components.emailWorkpool, {
   maxParallelism: EMAIL_POOL_SIZE,
 });
@@ -81,14 +81,7 @@ const callbackPool = new Workpool(components.callbackWorkpool, {
 });
 
 // We rate limit our calls to the Resend API.
-// FUTURE -- make this rate configurable if an account ups its sending rate with Resend.
-const resendApiRateLimiter = new RateLimiter(components.rateLimiter, {
-  resendApi: {
-    kind: "fixed window",
-    period: RESEND_ONE_CALL_EVERY_MS,
-    rate: 1,
-  },
-});
+const resendApiRateLimiter = new RateLimiter(components.rateLimiter);
 
 // Periodic background job to clean up old emails that have already
 // been delivered, bounced, what have you.
@@ -443,7 +436,12 @@ export const makeBatch = internalMutation({
     }
 
     // Okay, let's calculate rate limiting as best we can globally in this distributed system.
-    const delay = await getDelay(ctx);
+    // Handle backward compatibility: old database records may not have rateLimitPerSecond.
+    // Use fallback to default (2 req/s) for migration safety.
+    const delay = await getDelay(
+      ctx,
+      options.rateLimitPerSecond ?? DEFAULT_RATE_LIMIT_PER_SECOND,
+    );
 
     // Give the batch to the workpool! It will call the Resend batch API
     // in a durable background action.
@@ -707,9 +705,23 @@ async function createResendBatchPayload(
 }
 
 const FIXED_WINDOW_DELAY = 100;
-async function getDelay(ctx: RunMutationCtx & RunQueryCtx): Promise<number> {
+async function getDelay(
+  ctx: RunMutationCtx & RunQueryCtx,
+  rateLimitPerSecond: number,
+): Promise<number> {
+  // Calculate the period in milliseconds based on the configured rate limit.
+  // We use a conservative approach: allow 1 request per period.
+  // For example, 100 requests/second = 10ms period, 2 requests/second = 500ms period.
+  // Ensure minimum period of 1ms to allow high rate limits.
+  const periodMs = Math.max(1, Math.floor(1000 / rateLimitPerSecond));
+
   const limit = await resendApiRateLimiter.limit(ctx, "resendApi", {
     reserve: true,
+    config: {
+      kind: "fixed window",
+      period: periodMs,
+      rate: 1,
+    },
   });
   //console.log(`RL: ${limit.ok} ${limit.retryAfter}`);
   const jitter = Math.random() * FIXED_WINDOW_DELAY;
