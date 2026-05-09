@@ -551,10 +551,11 @@ export const callResendAPIWithBatch = internalAction({
     });
     if (!response.ok) {
       if (PERMANENT_ERROR_CODES.has(response.status)) {
-        // report the error to the user
+        const errorMessage = `Resend API error: ${response.status} ${response.statusText} ${await response.text()}`;
+        console.error(errorMessage);
         await ctx.runMutation(internal.lib.markEmailsFailed, {
           emailIds: args.emails,
-          errorMessage: `Resend API error: ${response.status} ${response.statusText} ${await response.text()}`,
+          errorMessage,
         });
         return;
       }
