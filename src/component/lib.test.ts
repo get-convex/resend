@@ -380,3 +380,31 @@ describe("sendEmail with templates", () => {
     ).rejects.toThrow("Subject is required when not using a template");
   });
 });
+
+describe("createManualEmail", () => {
+  let t: Tester;
+
+  beforeEach(async () => {
+    t = setupTest();
+  });
+
+  it("persists cc and bcc recipients", async () => {
+    const emailId: Id<"emails"> = await t.mutation(api.lib.createManualEmail, {
+      from: "test@resend.dev",
+      to: "delivered@resend.dev",
+      cc: "cc@resend.dev",
+      bcc: ["bcc@resend.dev"],
+      subject: "Manual email",
+    });
+
+    const email = await t.run(async (ctx) => {
+      const _email = await ctx.db.get("emails", emailId);
+      if (!_email) throw new Error("Email not found");
+      return _email;
+    });
+
+    expect(email.to).toEqual(["delivered@resend.dev"]);
+    expect(email.cc).toEqual(["cc@resend.dev"]);
+    expect(email.bcc).toEqual(["bcc@resend.dev"]);
+  });
+});

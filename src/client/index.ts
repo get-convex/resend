@@ -340,6 +340,8 @@ export class Resend {
       {
         from: options.from,
         to: options.to,
+        cc: options.cc,
+        bcc: options.bcc,
         subject: options.subject,
         replyTo: options.replyTo,
         headers: options.headers,
