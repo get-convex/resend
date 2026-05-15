@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.4
+- Fixed an issue in `resend.sendEmailManually` where
+  the `cc` and `bcc` fields would not be persisted
+  to the database (thanks @zxt-tzx!)
+
 ## 0.2.3
 
 - Fixed example code for destructuring resendSDK's response
