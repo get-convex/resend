@@ -222,6 +222,8 @@ export const createManualEmail = mutation({
   args: {
     from: v.string(),
     to: v.union(v.array(v.string()), v.string()),
+    cc: v.optional(v.union(v.array(v.string()), v.string())),
+    bcc: v.optional(v.union(v.array(v.string()), v.string())),
     subject: v.string(),
     replyTo: v.optional(v.array(v.string())),
     headers: v.optional(
@@ -238,6 +240,8 @@ export const createManualEmail = mutation({
     const emailId = await ctx.db.insert("emails", {
       from: args.from,
       to: Array.isArray(args.to) ? args.to : [args.to],
+      cc: toArray(args.cc),
+      bcc: toArray(args.bcc),
       subject: args.subject,
       headers: args.headers,
       segment: Infinity,
@@ -254,6 +258,11 @@ export const createManualEmail = mutation({
     return emailId;
   },
 });
+
+function toArray<T>(value: T | T[] | undefined): T[] | undefined {
+  if (value === undefined) return undefined;
+  return Array.isArray(value) ? value : [value];
+}
 
 export const updateManualEmail = mutation({
   args: {

@@ -49,6 +49,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "mutation",
         "internal",
         {
+          bcc?: Array<string> | string;
+          cc?: Array<string> | string;
           from: string;
           headers?: Array<{ name: string; value: string }>;
           replyTo?: Array<string>;
