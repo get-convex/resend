@@ -37,6 +37,7 @@ export const vOnEmailEventArgs = v.object({
 
 type Config = RuntimeConfig & {
   webhookSecret: string;
+  rateLimitMs: number;
 };
 
 function getDefaultConfig(): Config {
@@ -46,6 +47,7 @@ function getDefaultConfig(): Config {
     initialBackoffMs: 30000,
     retryAttempts: 5,
     testMode: true,
+    rateLimitMs: 600,
   };
 }
 
@@ -83,6 +85,13 @@ export type ResendOptions = {
   testMode?: boolean;
 
   /**
+   * The minimum time in milliseconds between API calls to Resend.
+   * Default is 600ms. Only change this if you have a higher rate limit
+   * approved by Resend.
+   */
+  rateLimitMs?: number;
+
+  /**
    * A mutation to run after an email event occurs.
    * The mutation will be passed the email id and the event.
    */
@@ -112,6 +121,7 @@ async function configToRuntimeConfig(
     initialBackoffMs: config.initialBackoffMs,
     retryAttempts: config.retryAttempts,
     testMode: config.testMode,
+    rateLimitMs: config.rateLimitMs,
     onEmailEvent: onEmailEvent
       ? { fnHandle: await createFunctionHandle(onEmailEvent) }
       : undefined,
@@ -225,6 +235,7 @@ export class Resend {
         options?.initialBackoffMs ?? defaultConfig.initialBackoffMs,
       retryAttempts: options?.retryAttempts ?? defaultConfig.retryAttempts,
       testMode: options?.testMode ?? defaultConfig.testMode,
+      rateLimitMs: options?.rateLimitMs ?? defaultConfig.rateLimitMs,
     };
     if (options?.onEmailEvent) {
       this.onEmailEvent = options.onEmailEvent;

@@ -38,6 +38,7 @@ export const vOptions = v.object({
   apiKey: v.string(),
   testMode: v.boolean(),
   onEmailEvent: v.optional(onEmailEvent),
+  rateLimitMs: v.number(),
 });
 
 export type RuntimeConfig = Infer<typeof vOptions>;

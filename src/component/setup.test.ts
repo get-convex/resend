@@ -155,6 +155,7 @@ export const createTestRuntimeConfig = (): RuntimeConfig => ({
   testMode: true,
   initialBackoffMs: 1000,
   retryAttempts: 3,
+  rateLimitMs: 600,
 });
 
 export const setupTestLastOptions = (
