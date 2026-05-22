@@ -67,7 +67,7 @@
     "@eslint/eslintrc": "3.3.5",
     "@eslint/js": "10.0.1",
     "@types/node": "24.12.4",
-    "@types/react": "19.2.14",
+    "@types/react": "19.2.15",
     "chokidar-cli": "3.0.0",
     "convex": "1.39.1",
     "convex-test": "0.0.53",
