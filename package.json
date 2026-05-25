@@ -82,7 +82,7 @@
     "tsc-alias": "1.8.17",
     "typescript": "5.9.3",
     "typescript-eslint": "8.59.4",
-    "vitest": "4.1.6"
+    "vitest": "4.1.7"
   },
   "types": "./dist/client/index.d.ts",
   "module": "./dist/client/index.js",
