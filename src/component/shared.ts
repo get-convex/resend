@@ -1,5 +1,6 @@
 import { literals } from "convex-helpers/validators";
 import {
+  type GenericActionCtx,
   type GenericDataModel,
   type GenericMutationCtx,
   type GenericQueryCtx,
@@ -166,9 +167,18 @@ export type EventEventOfType<T extends EventEventTypes> = Extract<
 
 /* Type utils follow */
 
-export type RunQueryCtx = {
-  runQuery: GenericQueryCtx<GenericDataModel>["runQuery"];
-};
-export type RunMutationCtx = {
-  runMutation: GenericMutationCtx<GenericDataModel>["runMutation"];
-};
+// Unions of ctx types picked from the real ctx variants, so signatures match
+// the types callers actually provide. Indexing into a single ctx type broke
+// on convex 1.41.0, which added an extra optional options argument to
+// runQuery/runMutation on query/mutation ctxs but not action ctxs.
+export type QueryCtx = Pick<GenericQueryCtx<GenericDataModel>, "runQuery">;
+export type MutationCtx = Pick<
+  GenericMutationCtx<GenericDataModel>,
+  "runQuery" | "runMutation"
+>;
+export type ActionCtx = Pick<
+  GenericActionCtx<GenericDataModel>,
+  "runQuery" | "runMutation" | "runAction"
+>;
+export type RunQueryCtx = QueryCtx | MutationCtx | ActionCtx;
+export type RunMutationCtx = MutationCtx | ActionCtx;
