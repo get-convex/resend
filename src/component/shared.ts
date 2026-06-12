@@ -1,8 +1,8 @@
 import { literals } from "convex-helpers/validators";
 import {
-  type GenericDataModel,
-  type GenericMutationCtx,
-  type GenericQueryCtx,
+  type FunctionArgs,
+  type FunctionReference,
+  type FunctionReturnType,
 } from "convex/server";
 import { type Infer, v } from "convex/values";
 
@@ -166,9 +166,19 @@ export type EventEventOfType<T extends EventEventTypes> = Extract<
 
 /* Type utils follow */
 
+// Hand-rolled minimal signatures instead of indexing into
+// GenericQueryCtx/GenericMutationCtx: those gained an extra optional options
+// argument in convex 1.41.0 that GenericActionCtx doesn't have, which would
+// make action ctx no longer assignable here.
 export type RunQueryCtx = {
-  runQuery: GenericQueryCtx<GenericDataModel>["runQuery"];
+  runQuery: <Query extends FunctionReference<"query", "internal">>(
+    query: Query,
+    args: FunctionArgs<Query>
+  ) => Promise<FunctionReturnType<Query>>;
 };
 export type RunMutationCtx = {
-  runMutation: GenericMutationCtx<GenericDataModel>["runMutation"];
+  runMutation: <Mutation extends FunctionReference<"mutation", "internal">>(
+    mutation: Mutation,
+    args: FunctionArgs<Mutation>
+  ) => Promise<FunctionReturnType<Mutation>>;
 };
