@@ -12,8 +12,9 @@ import {
   Template,
   vEmailEvent,
   type EmailEvent,
-  type RunMutationCtx,
-  type RunQueryCtx,
+  type ActionCtx,
+  type MutationCtx,
+  type QueryCtx,
   type RuntimeConfig,
   type Status,
 } from "../component/shared.js";
@@ -246,7 +247,7 @@ export class Resend {
    * @returns The id of the email within the component.
    */
   async sendEmail(
-    ctx: RunMutationCtx,
+    ctx: MutationCtx | ActionCtx,
     options: SendEmailOptions,
   ): Promise<EmailId>;
   /**
@@ -270,7 +271,7 @@ export class Resend {
    * @returns The id of the email within the component.
    */
   async sendEmail(
-    ctx: RunMutationCtx,
+    ctx: MutationCtx | ActionCtx,
     from: string,
     to: string,
     subject: string,
@@ -281,7 +282,7 @@ export class Resend {
   ): Promise<EmailId>;
   /** @deprecated Use the object format e.g. `{ from, to, subject, html }` */
   async sendEmail(
-    ctx: RunMutationCtx,
+    ctx: MutationCtx | ActionCtx,
     fromOrOptions: string | SendEmailOptions,
     to?: string,
     subject?: string,
@@ -323,7 +324,7 @@ export class Resend {
   }
 
   async sendEmailManually(
-    ctx: RunMutationCtx,
+    ctx: MutationCtx | ActionCtx,
     options: {
       from: string;
       to: string | string[];
@@ -381,7 +382,7 @@ export class Resend {
    * either a mutation or an action.
    * @param emailId The id of the email to cancel. This was returned from {@link sendEmail}.
    */
-  async cancelEmail(ctx: RunMutationCtx, emailId: EmailId) {
+  async cancelEmail(ctx: MutationCtx | ActionCtx, emailId: EmailId) {
     await ctx.runMutation(this.component.lib.cancelEmail, {
       emailId,
     });
@@ -396,7 +397,7 @@ export class Resend {
    * @returns {@link EmailStatus} The status of the email.
    */
   async status(
-    ctx: RunQueryCtx,
+    ctx: QueryCtx | MutationCtx | ActionCtx,
     emailId: EmailId,
   ): Promise<EmailStatus | null> {
     return await ctx.runQuery(this.component.lib.getStatus, {
@@ -413,7 +414,7 @@ export class Resend {
    * @returns The email, or null if the email does not exist.
    */
   async get(
-    ctx: RunQueryCtx,
+    ctx: QueryCtx | MutationCtx | ActionCtx,
     emailId: EmailId,
   ): Promise<{
     from: string;
@@ -452,7 +453,7 @@ export class Resend {
    * @returns A response to send back to Resend.
    */
   async handleResendEventWebhook(
-    ctx: RunMutationCtx,
+    ctx: MutationCtx | ActionCtx,
     req: Request,
   ): Promise<Response> {
     if (this.config.webhookSecret === "") {

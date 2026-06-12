@@ -1,8 +1,9 @@
 import { literals } from "convex-helpers/validators";
 import {
-  type FunctionArgs,
-  type FunctionReference,
-  type FunctionReturnType,
+  type GenericActionCtx,
+  type GenericDataModel,
+  type GenericMutationCtx,
+  type GenericQueryCtx,
 } from "convex/server";
 import { type Infer, v } from "convex/values";
 
@@ -166,19 +167,18 @@ export type EventEventOfType<T extends EventEventTypes> = Extract<
 
 /* Type utils follow */
 
-// Hand-rolled minimal signatures instead of indexing into
-// GenericQueryCtx/GenericMutationCtx: those gained an extra optional options
-// argument in convex 1.41.0 that GenericActionCtx doesn't have, which would
-// make action ctx no longer assignable here.
-export type RunQueryCtx = {
-  runQuery: <Query extends FunctionReference<"query", "internal">>(
-    query: Query,
-    args: FunctionArgs<Query>
-  ) => Promise<FunctionReturnType<Query>>;
-};
-export type RunMutationCtx = {
-  runMutation: <Mutation extends FunctionReference<"mutation", "internal">>(
-    mutation: Mutation,
-    args: FunctionArgs<Mutation>
-  ) => Promise<FunctionReturnType<Mutation>>;
-};
+// Unions of ctx types picked from the real ctx variants, so signatures match
+// the types callers actually provide. Indexing into a single ctx type broke
+// on convex 1.41.0, which added an extra optional options argument to
+// runQuery/runMutation on query/mutation ctxs but not action ctxs.
+export type QueryCtx = Pick<GenericQueryCtx<GenericDataModel>, "runQuery">;
+export type MutationCtx = Pick<
+  GenericMutationCtx<GenericDataModel>,
+  "runQuery" | "runMutation"
+>;
+export type ActionCtx = Pick<
+  GenericActionCtx<GenericDataModel>,
+  "runQuery" | "runMutation" | "runAction"
+>;
+export type RunQueryCtx = QueryCtx | MutationCtx | ActionCtx;
+export type RunMutationCtx = MutationCtx | ActionCtx;
