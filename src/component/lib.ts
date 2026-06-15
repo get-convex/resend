@@ -21,7 +21,7 @@ import {
   vTemplate,
 } from "./shared.js";
 import type { FunctionHandle } from "convex/server";
-import type { EmailEvent, RunMutationCtx, RunQueryCtx } from "./shared.js";
+import type { EmailEvent } from "./shared.js";
 import { isDeepEqual } from "remeda";
 import schema from "./schema.js";
 import { omit } from "convex-helpers";
@@ -365,10 +365,14 @@ export const get = query({
       return null;
     }
     const html = email.html
-      ? new TextDecoder().decode((await ctx.db.get("content", email.html))?.content)
+      ? new TextDecoder().decode(
+          (await ctx.db.get("content", email.html))?.content,
+        )
       : undefined;
     const text = email.text
-      ? new TextDecoder().decode((await ctx.db.get("content", email.text))?.content)
+      ? new TextDecoder().decode(
+          (await ctx.db.get("content", email.text))?.content,
+        )
       : undefined;
     return {
       ...omit(email, ["html", "text", "_id", "_creationTime"]),
@@ -568,7 +572,7 @@ export const callResendAPIWithBatch = internalAction({
             httpStatusText: response.statusText,
             errorMessage,
             emailIds: args.emails,
-          })
+          }),
         );
         await ctx.runMutation(internal.lib.markEmailsFailed, {
           emailIds: args.emails,
@@ -725,7 +729,7 @@ async function createResendBatchPayload(
 }
 
 const FIXED_WINDOW_DELAY = 100;
-async function getDelay(ctx: RunMutationCtx & RunQueryCtx): Promise<number> {
+async function getDelay(ctx: MutationCtx): Promise<number> {
   const limit = await resendApiRateLimiter.limit(ctx, "resendApi", {
     reserve: true,
   });
@@ -760,7 +764,9 @@ export const getAllContentByIds = internalQuery({
 export const getEmailsByIds = internalQuery({
   args: { emailIds: v.array(v.id("emails")) },
   handler: async (ctx, args) => {
-    const emails = await Promise.all(args.emailIds.map((id) => ctx.db.get("emails", id)));
+    const emails = await Promise.all(
+      args.emailIds.map((id) => ctx.db.get("emails", id)),
+    );
 
     // Some emails might be missing b/c they were cancelled long ago and already
     // cleaned up because the retention period has passed.
