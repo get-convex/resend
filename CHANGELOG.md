@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.5
+
+- Support ActionCtx in public API methods (#98)
+
 ## 0.2.4
 
 - Fixed an issue in `resend.sendEmailManually` where the `cc` and `bcc` fields
