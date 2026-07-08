@@ -52,6 +52,7 @@ const commonFields = {
   cc: v.optional(v.union(v.string(), v.array(v.string()))),
   bcc: v.optional(v.union(v.string(), v.array(v.string()))),
   reply_to: v.optional(v.union(v.string(), v.array(v.string()))),
+  message_id: v.optional(v.string()), // RFC Message-ID header, e.g. "<abc123@mail.example>"
   headers: v.optional(
     v.array(
       v.object({

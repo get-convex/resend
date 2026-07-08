@@ -1,6 +1,7 @@
 import { expect, describe, it, beforeEach } from "vitest";
 import { api } from "./_generated/api.js";
-import type { EmailEvent } from "./shared.js";
+import { vEmailEvent, type EmailEvent } from "./shared.js";
+import { attemptToParse } from "./utils.js";
 import {
   createTestEventOfType,
   insertTestSentEmail,
@@ -246,6 +247,22 @@ describe("handleEmailEvent", () => {
     expect(updatedEmail.finalizedAt).toBe(Number.MAX_SAFE_INTEGER);
     expect(updatedEmail.complained).toBe(false);
     expect(updatedEmail.opened).toBe(false);
+  });
+});
+
+describe("vEmailEvent parsing", () => {
+  it("keeps message_id but strips unknown fields", () => {
+    const sent = createTestEventOfType("email.sent");
+    const rawWebhook = {
+      ...sent,
+      data: { ...sent.data, some_future_resend_field: "should be stripped" },
+    };
+
+    const result = attemptToParse(vEmailEvent, rawWebhook as unknown);
+    if (result.kind !== "success") throw new Error(String(result.error));
+
+    expect(result.data.data.message_id).toBe("<test-message-id@example.com>");
+    expect("some_future_resend_field" in result.data.data).toBe(false);
   });
 });
 
