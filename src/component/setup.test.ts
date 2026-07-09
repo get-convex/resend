@@ -27,6 +27,7 @@ export const createTestEventOfType = <T extends EventEventTypes>(
 ): EventEventOfType<T> => {
   const baseData = {
     email_id: "test-resend-id-123",
+    message_id: "<test-message-id@example.com>",
     created_at: "2024-01-01T00:00:00Z",
     from: "test@example.com",
     to: "recipient@example.com",
