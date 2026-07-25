@@ -140,9 +140,26 @@ export const sendEmail = mutation({
         }),
       ),
     ),
+    idempotencyKey: v.optional(v.string()),
   },
   returns: v.id("emails"),
   handler: async (ctx, args) => {
+    // If the caller supplied an idempotency key, dedupe on it: if we've already
+    // enqueued an email with this key, return the existing email's id rather than
+    // enqueueing a duplicate. Mutations are transactional, so the index read and
+    // the subsequent insert are atomic with respect to concurrent enqueues.
+    if (args.idempotencyKey !== undefined) {
+      const existing = await ctx.db
+        .query("emails")
+        .withIndex("by_idempotencyKey", (q) =>
+          q.eq("idempotencyKey", args.idempotencyKey),
+        )
+        .first();
+      if (existing) {
+        return existing._id;
+      }
+    }
+
     // We only allow test emails in test mode.
     if (args.options.testMode) {
       for (const to of [...args.to, ...(args.cc ?? []), ...(args.bcc ?? [])]) {
@@ -200,6 +217,7 @@ export const sendEmail = mutation({
       text: textContentId,
       template: args.template,
       headers: args.headers,
+      idempotencyKey: args.idempotencyKey,
       segment,
       status: "waiting",
       bounced: false,

@@ -141,6 +141,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           from: string;
           headers?: Array<{ name: string; value: string }>;
           html?: string;
+          idempotencyKey?: string;
           options: {
             apiKey: string;
             initialBackoffMs: number;

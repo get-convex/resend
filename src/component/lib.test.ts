@@ -398,6 +398,81 @@ describe("sendEmail with templates", () => {
   });
 });
 
+describe("sendEmail with idempotencyKey", () => {
+  let t: Tester;
+
+  const baseOptions = {
+    apiKey: "test-key",
+    initialBackoffMs: 1000,
+    retryAttempts: 3,
+    testMode: true,
+  };
+
+  beforeEach(async () => {
+    t = setupTest();
+    await setupTestLastOptions(t);
+  });
+
+  const send = (idempotencyKey?: string) =>
+    t.mutation(api.lib.sendEmail, {
+      options: baseOptions,
+      from: "test@resend.dev",
+      to: ["delivered@resend.dev"],
+      subject: "Test",
+      html: "<p>Test</p>",
+      idempotencyKey,
+    });
+
+  it("persists the idempotencyKey on the email", async () => {
+    const emailId: Id<"emails"> = await send("trigger-123");
+
+    const email = await t.run(async (ctx) => {
+      const _email = await ctx.db.get("emails", emailId);
+      if (!_email) throw new Error("Email not found");
+      return _email;
+    });
+
+    expect(email.idempotencyKey).toBe("trigger-123");
+  });
+
+  it("returns the existing email id on a duplicate enqueue", async () => {
+    const first: Id<"emails"> = await send("trigger-123");
+    const second: Id<"emails"> = await send("trigger-123");
+
+    expect(second).toBe(first);
+
+    // Only one email should have been inserted.
+    const emails = await t.run(async (ctx) =>
+      ctx.db.query("emails").collect(),
+    );
+    expect(emails.length).toBe(1);
+  });
+
+  it("enqueues separate emails for distinct keys", async () => {
+    const first: Id<"emails"> = await send("trigger-a");
+    const second: Id<"emails"> = await send("trigger-b");
+
+    expect(second).not.toBe(first);
+
+    const emails = await t.run(async (ctx) =>
+      ctx.db.query("emails").collect(),
+    );
+    expect(emails.length).toBe(2);
+  });
+
+  it("does not dedupe when no key is provided", async () => {
+    const first: Id<"emails"> = await send();
+    const second: Id<"emails"> = await send();
+
+    expect(second).not.toBe(first);
+
+    const emails = await t.run(async (ctx) =>
+      ctx.db.query("emails").collect(),
+    );
+    expect(emails.length).toBe(2);
+  });
+});
+
 describe("createManualEmail", () => {
   let t: Tester;
 

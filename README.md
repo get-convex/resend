@@ -173,6 +173,31 @@ In addition to basic from/to/subject and html/plain text bodies, the `sendEmail`
 method allows you to provide a list of `replyTo` addresses, and other email
 headers.
 
+### Enqueue-time idempotency
+
+The component already sends idempotency keys to Resend so a given batch is
+delivered at most once. That protects against the component retrying an API
+call, but it doesn't stop your application from enqueuing the same logical email
+twice (for example, when a business flow re-fires or an action is retried).
+
+To dedupe at enqueue time, pass an `idempotencyKey`. If an email with the same
+key has already been enqueued, `sendEmail` returns the existing `EmailId` instead
+of enqueuing (and delivering) a duplicate:
+
+```ts
+const emailId = await resend.sendEmail(ctx, {
+  from: "Me <test@mydomain.com>",
+  to: "delivered@resend.dev",
+  subject: "Order confirmation",
+  html: "...",
+  // Derive this from the triggering event so retries collapse to one send.
+  idempotencyKey: `order-confirmation:${orderId}`,
+});
+```
+
+Because `sendEmail` runs in a transactional mutation, concurrent enqueues with
+the same key are safe: one wins and the others receive its `EmailId`.
+
 ### Using Resend Templates
 
 You can use

@@ -179,6 +179,12 @@ export type SendEmailOptions =
       text?: string;
       replyTo?: string[];
       headers?: { name: string; value: string }[];
+      /**
+       * An optional caller-supplied key that dedupes enqueues. If an email with
+       * this key has already been enqueued, `sendEmail` returns the existing
+       * {@link EmailId} instead of enqueueing (and delivering) a duplicate.
+       */
+      idempotencyKey?: string;
     }
   | {
       from: string;
@@ -194,6 +200,12 @@ export type SendEmailOptions =
       text?: never;
       replyTo?: string[];
       headers?: { name: string; value: string }[];
+      /**
+       * An optional caller-supplied key that dedupes enqueues. If an email with
+       * this key has already been enqueued, `sendEmail` returns the existing
+       * {@link EmailId} instead of enqueueing (and delivering) a duplicate.
+       */
+      idempotencyKey?: string;
     };
 
 export class Resend {
@@ -240,6 +252,10 @@ export class Resend {
    * will manage rate limiting and batching for efficiency.
    *
    * This component utilizes idempotency keys to ensure the email is sent exactly once.
+   *
+   * You may also supply an `idempotencyKey` in {@link SendEmailOptions} to dedupe at
+   * enqueue time: if an email with the same key has already been enqueued, the
+   * existing {@link EmailId} is returned instead of enqueueing a duplicate.
    *
    * @param ctx Any context that can run a mutation. You can enqueue an email from
    * either a mutation or an action.
