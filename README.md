@@ -30,16 +30,22 @@ npm install @convex-dev/resend
 
 ## Get Started
 
-Create a [Resend](https://resend.com) account and grab an API key. Set it to
-`RESEND_API_KEY` in your deployment environment.
+Create a [Resend](https://resend.com) account and grab an API key. Set it as
+`RESEND_API_KEY` in your Convex deployment.
 
 Next, add the component to your Convex app via `convex/convex.config.ts`:
 
 ```ts
 import { defineApp } from "convex/server";
+import { v } from "convex/values";
 import resend from "@convex-dev/resend/convex.config.js";
 
-const app = defineApp();
+const app = defineApp({
+  env: {
+    RESEND_API_KEY: v.string(),
+    RESEND_WEBHOOK_SECRET: v.optional(v.string()),
+  },
+});
 app.use(resend);
 
 export default app;
@@ -50,9 +56,12 @@ Then you can use it, as we see in `convex/sendEmails.ts`:
 ```ts
 import { components } from "./_generated/api";
 import { Resend } from "@convex-dev/resend";
-import { internalMutation } from "./_generated/server";
+import { env, internalMutation } from "./_generated/server";
 
-export const resend: Resend = new Resend(components.resend, {});
+export const resend: Resend = new Resend(components.resend, {
+  apiKey: env.RESEND_API_KEY,
+  webhookSecret: env.RESEND_WEBHOOK_SECRET,
+});
 
 export const sendTestEmail = internalMutation({
   handler: async (ctx) => {
@@ -130,10 +139,12 @@ Update your `sendEmails.ts` to look something like this:
 
 ```ts
 import { components, internal } from "./_generated/api";
-import { internalMutation } from "./_generated/server";
+import { env, internalMutation } from "./_generated/server";
 import { vEmailId, vEmailEvent, Resend } from "@convex-dev/resend";
 
 export const resend: Resend = new Resend(components.resend, {
+  apiKey: env.RESEND_API_KEY,
+  webhookSecret: env.RESEND_WEBHOOK_SECRET,
   onEmailEvent: internal.example.handleEmailEvent,
 });
 
@@ -156,9 +167,10 @@ customize it's behavior.
 
 Check out the [docstrings](./src/client/index.ts), but notable options include:
 
-- `apiKey`: Provide the Resend API key instead of having it read from the
-  environment variable.
-- `webhookSecret`: Same thing, but for the webhook secret.
+- `apiKey`: The Resend API key. Pass the typed `env.RESEND_API_KEY` value
+  declared in `convex.config.ts`.
+- `webhookSecret`: The optional webhook secret. Pass the typed
+  `env.RESEND_WEBHOOK_SECRET` value when using webhooks.
 - `testMode`: Only allow delivery to test addresses. To keep you safe as you
   develop your project, `testMode` is default **true**. You need to explicitly
   set this to `false` for the component to allow you to enqueue emails to
@@ -318,13 +330,14 @@ Then create a new .tsx file in your Convex directory e.g. `/convex/emails.tsx`:
 ```tsx
 // IMPORTANT: this is a Convex Node Action
 "use node";
-import { action } from "./_generated/server";
+import { action, env } from "./_generated/server";
 import { render, pretty } from "@react-email/render";
 import { Button, Html } from "@react-email/components";
 import { components } from "./_generated/api";
 import { Resend } from "@convex-dev/resend";
 
 export const resend: Resend = new Resend(components.resend, {
+  apiKey: env.RESEND_API_KEY,
   testMode: false,
 });
 
@@ -376,13 +389,15 @@ progress using the component's status and webhook APIs.
 
 ```ts
 import { components, internal } from "./_generated/api";
-import { internalAction } from "./_generated/server";
+import { env, internalAction } from "./_generated/server";
 import { Resend as ResendComponent } from "@convex-dev/resend";
 import { Resend } from "resend";
 
-const resendSdk = new Resend("re_xxxxxxxxx");
+const resendSdk = new Resend(env.RESEND_API_KEY);
 
-export const resend = new ResendComponent(components.resend, {});
+export const resend = new ResendComponent(components.resend, {
+  apiKey: env.RESEND_API_KEY,
+});
 
 export const sendManualEmail = internalAction({
   args: {},

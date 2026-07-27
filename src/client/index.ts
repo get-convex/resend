@@ -40,26 +40,14 @@ type Config = RuntimeConfig & {
   webhookSecret: string;
 };
 
-function getDefaultConfig(): Config {
-  return {
-    apiKey: process.env.RESEND_API_KEY ?? "",
-    webhookSecret: process.env.RESEND_WEBHOOK_SECRET ?? "",
-    initialBackoffMs: 30000,
-    retryAttempts: 5,
-    testMode: true,
-  };
-}
-
 export type ResendOptions = {
   /**
    * The API key to use for the Resend API.
-   * If not provided, the API key will be read from the environment variable RESEND_API_KEY.
    */
-  apiKey?: string;
+  apiKey: string;
 
   /**
    * The secret to use for the Resend webhook.
-   * If not provided, the webhook secret will be read from the environment variable RESEND_WEBHOOK_SECRET.
    */
   webhookSecret?: string;
 
@@ -216,18 +204,16 @@ export class Resend {
    */
   constructor(
     public component: ComponentApi,
-    options?: ResendOptions,
+    options: ResendOptions,
   ) {
-    const defaultConfig = getDefaultConfig();
     this.config = {
-      apiKey: options?.apiKey ?? defaultConfig.apiKey,
-      webhookSecret: options?.webhookSecret ?? defaultConfig.webhookSecret,
-      initialBackoffMs:
-        options?.initialBackoffMs ?? defaultConfig.initialBackoffMs,
-      retryAttempts: options?.retryAttempts ?? defaultConfig.retryAttempts,
-      testMode: options?.testMode ?? defaultConfig.testMode,
+      apiKey: options.apiKey,
+      webhookSecret: options.webhookSecret ?? "",
+      initialBackoffMs: options.initialBackoffMs ?? 30000,
+      retryAttempts: options.retryAttempts ?? 5,
+      testMode: options.testMode ?? true,
     };
-    if (options?.onEmailEvent) {
+    if (options.onEmailEvent) {
       this.onEmailEvent = options.onEmailEvent;
     }
   }

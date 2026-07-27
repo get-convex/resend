@@ -2,15 +2,18 @@ import {
   internalMutation,
   internalAction,
   internalQuery,
+  env,
 } from "./_generated/server";
 import { components, internal } from "./_generated/api";
 import { Resend, vOnEmailEventArgs } from "@convex-dev/resend";
 import { v } from "convex/values";
 import { Resend as ResendSdk, Tag} from "resend";
 
-const resendSdk = new ResendSdk(process.env.RESEND_API_KEY!);
+const resendSdk = new ResendSdk(env.RESEND_API_KEY);
 
 export const resend: Resend = new Resend(components.resend, {
+  apiKey: env.RESEND_API_KEY,
+  webhookSecret: env.RESEND_WEBHOOK_SECRET,
   onEmailEvent: internal.example.handleEmailEvent,
 });
 
