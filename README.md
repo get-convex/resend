@@ -31,7 +31,11 @@ npm install @convex-dev/resend
 ## Get Started
 
 Create a [Resend](https://resend.com) account and grab an API key. Set it as
-`RESEND_API_KEY` in your Convex deployment.
+`RESEND_API_KEY` in your Convex deployment via
+
+```bash
+npx convex env set RESEND_API_KEY
+```
 
 Next, add the component to your Convex app via `convex/convex.config.ts`:
 
