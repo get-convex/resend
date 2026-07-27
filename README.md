@@ -174,7 +174,12 @@ Update your `sendEmails.ts` to look something like this:
 ```ts
 import { components, internal } from "./_generated/api";
 import { env, internalMutation } from "./_generated/server";
-import { vEmailId, vEmailEvent, Resend } from "@convex-dev/resend";
+import {
+  vEmailId,
+  vEmailEvent,
+  vOnEmailEventArgs,
+  Resend,
+} from "@convex-dev/resend";
 
 export const resend: Resend = new Resend(components.resend, {
   apiKey: env.RESEND_API_KEY,
