@@ -43,7 +43,6 @@ import resend from "@convex-dev/resend/convex.config.js";
 const app = defineApp({
   env: {
     RESEND_API_KEY: v.string(),
-    RESEND_WEBHOOK_SECRET: v.optional(v.string()),
   },
 });
 app.use(resend);
@@ -60,7 +59,6 @@ import { env, internalMutation } from "./_generated/server";
 
 export const resend: Resend = new Resend(components.resend, {
   apiKey: env.RESEND_API_KEY,
-  webhookSecret: env.RESEND_WEBHOOK_SECRET,
 });
 
 export const sendTestEmail = internalMutation({
@@ -122,8 +120,44 @@ project running at `https://happy-leopard-123.convex.site/resend-webhook`.
 So navigate to the Resend dashboard and create a new webhook at that URL. Make
 sure to enable all the `email.*` events; the other event types will be ignored.
 
-Finally, copy the webhook secret out of the Resend dashboard and set it to the
-`RESEND_WEBHOOK_SECRET` environment variable in your Convex deployment.
+Now that you have your webhook secret, we need to add it to Convex.
+
+Step 1, Add the env variable to your convex deployment with:
+
+```bash
+npx convex env set RESEND_WEBHOOK_SECRET
+```
+
+Step 2, tell add the webhook to Convex's typed env variables (available in ^1.39.0) to convex/convex.config.ts:
+
+```typescript
+import { defineApp } from "convex/server";
+import { v } from "convex/values";
+import resend from "@convex-dev/resend/convex.config.js";
+
+const app = defineApp({
+  env: {
+    RESEND_API_KEY: v.string(),
+    RESEND_WEBHOOK_SECRET: v.string(),  // Add this
+  },
+});
+app.use(resend);
+
+export default app;
+```
+
+Then you can use the typed env variable when initializing your Resend client:
+
+```typescript
+import { components } from "./_generated/api";
+import { Resend } from "@convex-dev/resend";
+import { env } from "./_generated/server";
+
+export const resend: Resend = new Resend(components.resend, {
+  apiKey: env.RESEND_API_KEY,
+  webhookSecret: env.RESEND_WEBHOOK_SECRET,  // Like so
+});
+```
 
 You should now be seeing email status updates as Resend makes progress on your
 batches!
