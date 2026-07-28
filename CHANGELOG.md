@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.6
+
+- forward message_id from Resend webhook payloads to onEmailEvent (#101)
+
 ## 0.2.5
 
 - Support ActionCtx in public API methods (#98)
