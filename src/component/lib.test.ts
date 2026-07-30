@@ -24,7 +24,9 @@ describe("handleEmailEvent", () => {
   });
 
   const exec = async (_event: EmailEvent | unknown = event) => {
-    await t.mutation(api.lib.handleEmailEvent, { event: _event });
+    await t.mutation(api.lib.handleEmailEvent, {
+      event: _event as EmailEvent,
+    });
   };
 
   const getEmail = () =>
