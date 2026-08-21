@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.7
+
+- Bumps Workpool dependency and convex peer dependency
+
 ## 0.2.6
 
 - forward message_id from Resend webhook payloads to onEmailEvent (#101)
