@@ -58,7 +58,7 @@
     }
   },
   "peerDependencies": {
-    "convex": "^1.31.7",
+    "convex": "^1.43.0",
     "convex-helpers": "^0.1.106"
   },
   "devDependencies": {
@@ -69,7 +69,7 @@
     "@types/node": "24.13.3",
     "@types/react": "19.2.17",
     "chokidar-cli": "3.0.0",
-    "convex": "1.42.1",
+    "convex": "1.44.0",
     "convex-test": "0.0.54",
     "eslint": "10.7.0",
     "eslint-plugin-react-hooks": "7.1.1",
@@ -88,7 +88,7 @@
   "module": "./dist/client/index.js",
   "dependencies": {
     "@convex-dev/rate-limiter": "^0.3.0",
-    "@convex-dev/workpool": "^0.4.6",
+    "@convex-dev/workpool": "^0.4.10",
     "remeda": "^2.26.0",
     "resend": "^6.6.0",
     "svix": "^1.70.0"
