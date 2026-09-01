@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Added an optional `idempotencyKey` to `sendEmail` for enqueue-time dedupe: a
+  duplicate enqueue with the same key returns the existing `EmailId` instead of
+  sending twice (#107).
+
 ## 0.2.7
 
 - Bumps Workpool dependency and convex peer dependency
