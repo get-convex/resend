@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.8
 
 - Added an optional `idempotencyKey` to `sendEmail` for enqueue-time dedupe: a
   duplicate enqueue with the same key returns the existing `EmailId` instead of
