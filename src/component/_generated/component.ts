@@ -78,6 +78,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           from: string;
           headers?: Array<{ name: string; value: string }>;
           html?: string;
+          idempotencyKey?: string;
           opened: boolean;
           replyTo: Array<string>;
           resendId?: string;
