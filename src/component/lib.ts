@@ -9,6 +9,7 @@ import {
 } from "./_generated/server.js";
 import { Workpool } from "@convex-dev/workpool";
 import { RateLimiter } from "@convex-dev/rate-limiter";
+import { defineBatchWorkerValidators, ping } from "@convex-dev/batch-worker";
 import { api, components, internal } from "./_generated/api.js";
 import { internalMutation } from "./_generated/server.js";
 import { type Id, type Doc } from "./_generated/dataModel.js";
@@ -25,11 +26,10 @@ import type { EmailEvent } from "./shared.js";
 import { isDeepEqual } from "remeda";
 import schema from "./schema.js";
 import { omit } from "convex-helpers";
-import { parse } from "convex-helpers/validators";
+import { doc, parse } from "convex-helpers/validators";
 import { assertExhaustive, attemptToParse } from "./utils.js";
 
 // Move some of these to options? TODO
-const SEGMENT_MS = 125;
 const BASE_BATCH_DELAY = 1000;
 const BATCH_SIZE = 100;
 const EMAIL_POOL_SIZE = 4;
@@ -64,11 +64,6 @@ const PERMANENT_ERROR_CODES = new Set([
   422 /*423, 424, 425, may change over time */, 426, 427,
   428 /* 429, explicitly asked to retry */, 431 /* 451, laws change? */,
 ]);
-
-// We break the emails into segments to avoid contention on new emails being inserted.
-function getSegment(now: number) {
-  return Math.floor(now / SEGMENT_MS);
-}
 
 // Four threads is more than enough, especially given the low rate limiting.
 const emailPool = new Workpool(components.emailWorkpool, {
@@ -203,10 +198,7 @@ export const sendEmail = mutation({
       textContentId = contentId;
     }
 
-    // This is the "send requested" segment.
-    const segment = getSegment(Date.now());
-
-    // Okay, we're ready to insert the email into the database, waiting for a background job to enqueue it.
+    // Okay, we're ready to insert the email into the database, waiting for the batch worker to enqueue it.
     const emailId = await ctx.db.insert("emails", {
       from: args.from,
       to: args.to,
@@ -218,7 +210,7 @@ export const sendEmail = mutation({
       template: args.template,
       headers: args.headers,
       idempotencyKey: args.idempotencyKey,
-      segment,
+      insertedAt: ctx.db.vars.commitTs,
       status: "waiting",
       bounced: false,
       complained: false,
@@ -262,7 +254,6 @@ export const createManualEmail = mutation({
       bcc: toArray(args.bcc),
       subject: args.subject,
       headers: args.headers,
-      segment: Infinity,
       status: "queued",
       bounced: false,
       complained: false,
@@ -416,32 +407,60 @@ async function scheduleBatchRun(ctx: MutationCtx, options: RuntimeConfig) {
     });
   }
 
-  // Check if there is already a worker running.
-  const existing = await ctx.db.query("nextBatchRun").unique();
+  await pingEmailWorker(ctx);
+}
 
-  // Is there already a worker running?
-  if (existing) {
-    return;
-  }
-
-  // No worker running? Schedule one.
-  const runId = await ctx.scheduler.runAfter(
-    BASE_BATCH_DELAY,
-    internal.lib.makeBatch,
-    { reloop: false, segment: getSegment(Date.now() + BASE_BATCH_DELAY) },
-  );
-
-  // Insert the new worker to reserve exactly one running.
-  await ctx.db.insert("nextBatchRun", {
-    runId,
+// Keep the email worker loop alive. Cheap and idempotent, so we call it on
+// every send.
+async function pingEmailWorker(ctx: MutationCtx) {
+  await ping(ctx, components.batchWorker, {
+    name: "emails",
+    workQuery: internal.lib.nextEmailBatch,
+    workerMutation: internal.lib.sendEmailBatch,
+    // Wait before the first batch so a burst of sends accumulates.
+    config: { debounceMs: BASE_BATCH_DELAY },
   });
 }
 
-// A background job that grabs batches of emails and enqueues them to be sent by the workpool.
-export const makeBatch = internalMutation({
-  args: { reloop: v.boolean(), segment: v.number() },
-  returns: v.null(),
-  handler: async (ctx, args) => {
+const { vQueryArgs, vQueryReturns, vMutationArgs, vMutationReturns } =
+  defineBatchWorkerValidators({
+    batch: { emails: v.array(doc(schema, "emails")) },
+  });
+
+// Decide the next batch of emails to send, or report that the queue is empty.
+export const nextEmailBatch = internalQuery({
+  args: vQueryArgs,
+  returns: vQueryReturns,
+  handler: async (ctx, { cursor }) => {
+    // Emails leave this index range once queued, so `gte` never hands out
+    // work twice; the cursor exists to skip the tombstones they leave behind.
+    const emails = await ctx.db
+      .query("emails")
+      .withIndex("by_status_insertedAt", (q) =>
+        cursor === undefined
+          ? q.eq("status", "waiting")
+          : q.eq("status", "waiting").gte("insertedAt", cursor),
+      )
+      .take(BATCH_SIZE);
+    if (emails.length === 0) {
+      return { kind: "idle" as const };
+    }
+    return {
+      kind: "work" as const,
+      batch: { emails },
+      // Emails from older versions have no insertedAt and sort first; for
+      // those, undefined leaves the cursor where it was until they drain.
+      cursor: emails[emails.length - 1].insertedAt,
+    };
+  },
+});
+
+// Process one batch: mark the emails as queued and hand them to the workpool,
+// which calls the Resend batch API in a durable background action with retries.
+export const sendEmailBatch = internalMutation({
+  args: vMutationArgs,
+  returns: vMutationReturns,
+  handler: async (ctx, { emails }) => {
     // Get the API key for the worker.
     const lastOptions = await ctx.db.query("lastOptions").unique();
     if (!lastOptions) {
@@ -449,24 +468,11 @@ export const makeBatch = internalMutation({
     }
     const options = lastOptions.options;
 
-    // Grab the batch of emails to send.
-    const emails = await ctx.db
-      .query("emails")
-      .withIndex("by_status_segment", (q) =>
-        // We scan earlier than two segments ago to avoid contention between new email insertions and batch creation.
-        q.eq("status", "waiting").lte("segment", args.segment - 2),
-      )
-      .take(BATCH_SIZE);
-
-    // If we have no emails, or we have a short batch on a reloop,
-    // let's delay working for now.
-    if (emails.length === 0 || (args.reloop && emails.length < BATCH_SIZE)) {
-      return reschedule(ctx, emails.length > 0);
-    }
-
     console.log(`Making a batch of ${emails.length} emails`);
 
-    // Mark the emails as queued.
+    // Mark the emails as queued. The batch comes from the same db snapshot as
+    // this mutation, and patching takes a read dependency on each doc, so a
+    // concurrent cancellation conflicts and re-runs the whole loop iteration.
     for (const email of emails) {
       await ctx.db.patch("emails", email._id, {
         status: "queued",
@@ -497,40 +503,23 @@ export const makeBatch = internalMutation({
       },
     );
 
-    // Let's go around again until there are no more batches to make in this particular segment range.
-    await ctx.scheduler.runAfter(0, internal.lib.makeBatch, {
-      reloop: true,
-      segment: args.segment,
-    });
+    // Full batch: drain immediately. Short batch: the queue is empty, so
+    // debounce to let the next burst accumulate.
+    return emails.length === BATCH_SIZE
+      ? null
+      : { debounceMs: BASE_BATCH_DELAY };
   },
 });
 
-// If there are no more emails to send in this segment range, we need to check to see if there are any
-// emails in newer segments and so we should sleep for a bit before trying to make batches again.
-// If the table is empty, we need to stop the worker and idle the system until a new email is inserted.
-async function reschedule(ctx: MutationCtx, emailsLeft: boolean) {
-  emailsLeft =
-    emailsLeft ||
-    (await ctx.db
-      .query("emails")
-      .withIndex("by_status_segment", (q) => q.eq("status", "waiting"))
-      .first()) !== null;
-
-  if (!emailsLeft) {
-    // No next email yet?
-    const batchRun = await ctx.db.query("nextBatchRun").unique();
-    if (!batchRun) {
-      throw new Error("No batch run found -- invariant");
-    }
-    await ctx.db.delete("nextBatchRun", batchRun._id);
-  } else {
-    const segment = getSegment(Date.now() + BASE_BATCH_DELAY);
-    await ctx.scheduler.runAfter(BASE_BATCH_DELAY, internal.lib.makeBatch, {
-      reloop: false,
-      segment,
-    });
-  }
-}
+// Migration shim: older versions scheduled this directly, so an upgrading
+// deployment may have a run in flight. Hand the queue to the batch worker.
+export const makeBatch = internalMutation({
+  args: { reloop: v.boolean(), segment: v.number() },
+  returns: v.null(),
+  handler: async (ctx) => {
+    await pingEmailWorker(ctx);
+  },
+});
 
 // Helper to fetch content. We'll use batch apis here to avoid lots of action->query calls.
 async function getAllContent(
