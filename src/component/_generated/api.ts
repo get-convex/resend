@@ -55,4 +55,5 @@ export const components = componentsGeneric() as unknown as {
   rateLimiter: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiter">;
   emailWorkpool: import("@convex-dev/workpool/_generated/component.js").ComponentApi<"emailWorkpool">;
   callbackWorkpool: import("@convex-dev/workpool/_generated/component.js").ComponentApi<"callbackWorkpool">;
+  batchWorker: import("@convex-dev/batch-worker/_generated/component.js").ComponentApi<"batchWorker">;
 };
