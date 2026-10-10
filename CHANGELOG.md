@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.9
+
+- Updates the /test entrypoint for compatibility with convex-test's new
+  `defineTestApp` capability.
+
 ## 0.2.8
 
 - Added an optional `idempotencyKey` to `sendEmail` for enqueue-time dedupe: a
