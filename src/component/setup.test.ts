@@ -6,6 +6,7 @@ import type {
   RuntimeConfig,
 } from "./shared.js";
 import { convexTest } from "convex-test";
+import batchWorker from "@convex-dev/batch-worker/test";
 import schema from "./schema.js";
 import type { Doc } from "./_generated/dataModel.js";
 import { assertExhaustive } from "./utils.js";
@@ -14,6 +15,7 @@ export const modules = import.meta.glob("./**/*.*s");
 
 export const setupTest = () => {
   const t = convexTest(schema, modules);
+  batchWorker.register(t, "batchWorker");
   return t;
 };
 
@@ -199,7 +201,6 @@ export const insertTestSentEmail = (
     opened: false,
     clicked: false,
     resendId: "test-resend-id-123",
-    segment: 1,
     finalizedAt: Number.MAX_SAFE_INTEGER, // FINALIZED_EPOCH
     ...overrides,
   });

@@ -9,9 +9,6 @@ export default defineSchema({
     filename: v.optional(v.string()),
     path: v.optional(v.string()),
   }),
-  nextBatchRun: defineTable({
-    runId: v.id("_scheduled_functions"),
-  }),
   lastOptions: defineTable({
     options: vOptions,
   }),
@@ -50,10 +47,15 @@ export default defineSchema({
     clicked: v.optional(v.boolean()),
     resendId: v.optional(v.string()),
     idempotencyKey: v.optional(v.string()),
-    segment: v.number(),
+    // Deprecated: only written by older versions, for their batching loop.
+    segment: v.optional(v.number()),
+    // Commit timestamp of the insert: the batch worker's cursor over waiting
+    // emails. Optional because older versions didn't write it; missing values
+    // sort before all timestamps, so those emails drain first.
+    insertedAt: v.optional(v.commitTs()),
     finalizedAt: v.number(),
   })
-    .index("by_status_segment", ["status", "segment"])
+    .index("by_status_insertedAt", ["status", "insertedAt"])
     .index("by_resendId", ["resendId"])
     .index("by_idempotencyKey", ["idempotencyKey"])
     .index("by_finalizedAt", ["finalizedAt"]),
