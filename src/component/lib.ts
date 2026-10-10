@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, type VAny } from "convex/values";
 import {
   internalAction,
   mutation,
@@ -929,7 +929,7 @@ function computeEmailUpdateFromEvent(
 // Handle a webhook event. Mostly we just update the email status.
 export const handleEmailEvent = mutation({
   args: {
-    event: v.any(),
+    event: v.any() as VAny<EmailEvent>,
   },
   returns: v.null(),
   handler: async (ctx, args) => {
